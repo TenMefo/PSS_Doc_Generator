@@ -43,7 +43,7 @@ Aby wrzucić nową wersję na GitHub Pages, wpisz w terminalu:
 npm run deploy
 ```
 
-[Skrypt](PSS_Doc_Generator/package.json#scripts) jest tak przygotowany, że sam zbuduje projekt na nowo
+[Skrypt](package.json#scripts) jest tak przygotowany, że sam zbuduje projekt na nowo
 i zaktualizuje branch gh-pages.
 Zmiany na stronie powinny pojawić się w ciagu 1-2 minut.
 Z doświadczenia - nierzadko trwa to kilkanaście minut.
