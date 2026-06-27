@@ -1,0 +1,13 @@
+{
+  "dev": {
+    "version": "0.2",
+    "date": "27.06.2026",
+    "author": "Mateusz Parciak",
+    "link": "https://www.instagram.com/ten_mefo/"
+  },
+  "organizacja": {
+    "name_prefix": ["SWSS", "Sejmik Wydziałowy Samorządu Studenckiego Wydiału", "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału"],
+    "name_short": ["WA", "WBiNoZ", "WBiIŚ", "WEkon", "WE", "WI", "WIMiM", "WKŚiR", "WNoŻiR", "WTMiT", "WTiICh"],
+    "name_full": ["Architektury", "Biotechnologii i Nauk o Zwierzętach", "Budownictwa i Inżynierii Środowiska", "Ekonomii", "Elektrycznego", "Informatyki", "Inżynierii Mechanicznej i Mechatroniki", "Kształtowania Środowiska i Rolnictwa", "Nauk o Żywności i Rybactwie", "Techniki Morskiej i Transportu", "Technologii i Inżynierii Chemicznej"]
+  }
+}

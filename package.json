@@ -1,6 +1,6 @@
 {
   "homepage": "https://github.com/TenMefo/PSS_Doc_Generator.git",
-  "name": "Generator Dokumentow PSS",
+  "name": "Generator Dokumentów PSS",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,10 +13,14 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.1",
     "docx": "^9.7.1",
+    "docxtemplater": "^3.69.0",
     "file-saver": "^2.0.5",
+    "pizzip": "^3.2.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
