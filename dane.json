@@ -1,0 +1,242 @@
+{
+  "dev": {
+    "version": "0.3",
+    "date": "27.06.2026",
+    "author": "Mateusz Parciak",
+    "link": "https://www.instagram.com/ten_mefo/"
+  },
+
+  "form_wniosek": [
+    {
+      "id": "data_wniosku",
+      "label": "Data wniosku",
+      "type": "date"
+    },
+    {
+      "id": "wybor_organizacji",
+      "label": "Organizator",
+      "type": "select_complex",
+      "options": [
+        {
+          "name": "Parlament Samorządu Studenckiego",
+            "tags": {
+                "organizacja_dopelniacz": "Parlamentu Samorządu Studenckiego ZUT w Szczecinie",
+                "organizacja_mianownik": "Parlament Samorządu Studenckiego ZUT w Szczecinie",
+                "swss": "PSS"
+            }
+        },
+        {
+          "name": "Wydział Architektury",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Architektury",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Architektury",
+            "wydzial": "Wydział Architektury",
+            "swss": "SWSS WA"
+          }
+        },
+        {
+          "name": "Wydział Biotechnologii i Nauk o Zwierzętach",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Biotechnologii i Nauk o Zwierzętach",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Biotechnologii i Nauk o Zwierzętach",
+            "wydzial": "Wydział Biotechnologii i Nauk o Zwierzętach",
+            "swss": "SWSS WBiNoZ"
+          }
+        },
+        {
+          "name": "Wydział Budownictwa i Inżynierii Środowiska",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Budownictwa i Inżynierii Środowiska",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Budownictwa i Inżynierii Środowiska",
+            "wydzial": "Wydział Budownictwa i Inżynierii Środowiska",
+            "swss": "SWSS WBiIŚ"
+          }
+        },
+        {
+          "name": "Wydział Ekonomii",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Ekonomii",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Ekonomii",
+            "wydzial": "Wydział Ekonomii",
+            "swss": "SWSS WEkon"
+          }
+        },
+        {
+          "name": "Wydział Elektryczny",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Elektrycznego",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Elektrycznego",
+            "wydzial": "Wydział Elektrycznego",
+            "swss": "SWSS WE"
+          }
+        },
+        {
+          "name": "Wydział Informatyki",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Informatyki",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Informatyki",
+            "wydzial": "Wydział Informatyki",
+            "swss": "SWSS WI"
+          }
+        },
+        {
+          "name": "Wydział Inżynierii Mechanicznej i Mechatroniki",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Inżynierii Mechanicznej i Mechatroniki",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Inżynierii Mechanicznej i Mechatroniki",
+            "wydzial": "Wydział Inżynierii Mechanicznej i Mechatroniki",
+            "swss": "SWSS WIMiM"
+          }
+        },
+        {
+          "name": "Wydział Kształtowania Środowiska i Rolnictwa",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Kształtowania Środowiska i Rolnictwa",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Kształtowania Środowiska i Rolnictwa",
+            "wydzial": "Wydział Kształtowania Środowiska i Rolnictwa",
+            "swss": "SWSS WKŚiR"
+          }
+        },
+        {
+          "name": "Wydział Nauk o Żywności i Rybactwie",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Nauk o Żywności i Rybactwie",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Nauk o Żywności i Rybactwie",
+            "wydzial": "Wydział Nauk o Żywności i Rybactwie",
+            "swss": "SWSS WNoŻiR"
+          }
+        },
+        {
+          "name": "Wydział Techniki Morskiej i Transportu",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Techniki Morskiej i Transportu",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Techniki Morskiej i Transportu",
+            "wydzial": "Wydział Techniki Morskiej i Transportu",
+            "swss": "SWSS WTMiT"
+          }
+        },
+        {
+          "name": "Wydział Technologii i Inżynierii Chemicznej",
+          "tags": {
+            "organizacja_dopelniacz": "Sejmiku Wydziałowego Samorządu Studenckiego Wydziału Technologii i Inżynierii Chemicznej",
+            "organizacja_mianownik": "Sejmik Wydziałowy Samorządu Studenckiego Wydziału Technologii i Inżynierii Chemicznej",
+            "wydzial": "Wydział Technologii i Inżynierii Chemicznej",
+            "swss": "SWSS WTiICh"
+          }
+        }
+      ]
+    }
+  ],
+  "form_wydarzenie": [
+    {
+      "id": "nazwa_przedsięwzięcia",
+      "label": "Nazwa wydarzenia",
+      "type": "text",
+      "placeholder": "Wpisz...",
+      "hint": "Nazwa wydarzenia, najlepiej taka jak się pojawia w mediach. np. \"Juwenalia 2069\", \"Kawa z Dziekanem\", \"Mikołajki w Betoniarce\" itd."
+    },
+    {
+      "id": "data_przedsięwzięcia",
+      "label": "Data wydarzenia",
+      "type": "date",
+      "hint": "Pamiętaj, że wniosek musi trafić NAJPÓŹNIEJ 14 dni przed wydarzeniem. Weź pod uwagę inne czynniki jak dodatkowe zgody, czas na zakup potrzebnych rzeczy itd. Wniosek powinien być ostatnim punktem całej organizacji."
+    },
+    {
+      "id": "miejsce_oraz_adres",
+      "label": "Miejsce wydarzenia",
+      "type": "text",
+      "placeholder": "Wpisz...",
+      "hint": "Nazwa miejsca oraz dokładny adres, np. \"CKS Pinokio, ul. Sikorskiego 29, 71-072 Szczecin\""
+    },
+    {
+      "id": "opis_oraz_cel",
+      "label": "Opis i cel",
+      "type": "textarea",
+      "placeholder": "Celem przedsięwzięcia jest...",
+      "hint": "Opis i cel wydarzenia, najlepiej zwięzły i precyzyjny ale jednocześnie podkreślający znaczenie. Celem może być np. \"integracja społeczności akademickiej\", \"promocja zdrowego stylu życia\", \"zwiększenie poczucia wspólnoty\",\"promocja sportowej rywalizacji\" itd."
+    }
+  ],
+  "form_zakup": [
+    {
+      "id": "nazwa_przedsięwzięcia",
+      "label": "Nazwa przedsięwzięcia",
+      "type": "text",
+      "placeholder": "Wpisz...",
+      "hint": "Nazwa przedsięwzięcia, najlepiej względnie bezpośrednia jak \"Zakup bluz\", \"Zakup głośnika\"."
+    },
+    {
+      "id": "data_przedsięwzięcia",
+      "label": "Data przedsięwzięcia",
+      "type": "date",
+      "hint": "Pamiętaj, że wniosek musi trafić NAJPÓŹNIEJ 14 dni przed przedsięwwzięciem. Weź pod uwagę inne czynniki jak dodatkowe zgody itd. Wniosek powinien być ostatnim punktem całej organizacji."
+    }
+  ],
+  "form_wyjazd": [
+    {
+      "id": "nazwa_przedsięwzięcia",
+      "label": "Nazwa wyjazdu",
+      "type": "text",
+      "placeholder": "Wpisz...",
+      "hint": "Nazwa wyjazdu lub delegacji."
+    },
+    {
+      "id": "data_przedsięwzięcia",
+      "label": "Data wyjazdu",
+      "type": "complex_date",
+      "hint": "Pamiętaj, że wniosek musi trafić NAJPÓŹNIEJ 14 dni przed przedsięwwzięciem. Weź pod uwagę inne czynniki jak dodatkowe zgody itd. Wniosek powinien być ostatnim punktem całej organizacji."
+    },
+    {
+      "id": "miejscowość_wyjazdu",
+      "label": "Miejscowość wyjazdu",
+      "type": "text",
+      "placeholder": "Miasto...",
+      "hint": "Miejscowość, w której odbędzie się wyjazd."
+    },
+    {
+      "id": "miejsce_oraz_adres",
+      "label": "Dokładne miejsce wyjazdu",
+      "type": "text",
+      "placeholder": "Miasto też...",
+      "hint": "Nazwa miejsca oraz dokładny adres (maisto też) np. \"CKS Pinokio, ul. Sikorskiego 29, 71-072 Szczecin\""
+    }
+  ],
+
+  "form_odpowiedzialny": [
+    {
+      "id": "odpowiedzialny_imie",
+      "label": "Imię i nazwisko",
+      "type": "text",
+      "placeholder": "Wpisz..."
+    },
+    {
+      "id": "odpowiedzialny_tel",
+      "label": "Telefon",
+      "type": "text",
+      "placeholder": "Wpisz..."
+    },
+    {
+      "id": "odpowiedzialny_email",
+      "label": "Adres e-mail",
+      "type": "email",
+      "placeholder": "Wpisz..."
+    },
+    {
+      "id": "odpowiedzialny_funkcja",
+      "label": "Funkcja w samorządzie",
+      "type": "select",
+      "options": [
+        "Przewodniczący",
+        "Wiceprzewodniczący",
+        "Członek"]
+    }
+  ],
+  "end": {
+    "id": "data_rozliczenia",
+    "label": "Data rozliczenia",
+    "type": "date",
+    "hint": "Data rozliczenia wniosku, NAJMNIEJ 14 od daty wydarzenia. W tym czasie należy zanieść wniosek do rektoratu, ale weź pod uwagę, że uczelnia musi zdążyć go rozliczyć"
+  },
+  "static_tags": {
+    "opiekun": "Przewodniczący PSS"
+  }
+}
