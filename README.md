@@ -1,16 +1,25 @@
-# React + Vite
+### AI Slop - ale działa... poniekąd
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+### TO DO:
+- dostosować json do form_zakupy oraz form_wyjazdy
+- tabela kosztów (+ zliczanie koszt_całkowity oraz koszt_wymagany)
+- tabela uczestników (+ zliczanie liczba_uczestników)
+- poprawić data_wyjazdu_start i data_wyjazdu_powrót
+- data_rozliczenia -> komunikat o terminie rozliczenia jeśli jest mniej niż 14 dni. Dodatkowo timeskip do dnia roboczego
+- format wyjściowy = dd.mm.rrrr
+- wnioski dla kilku organizatorów
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### JSON:
+- pole "id" musi być identyczne z polami w .docx
+### INPUTY (JSON)
+- text - zwykłe pole tekstowe
+- number - pole liczbowe
+- date - wybiera datę z kalendarza
+- time - wybiera godzinę z zegara
+- email - pole do wpisania adresu email
+- --
+- select_complex – Kod wyłapuje tę nazwę i zamiast zwykłego pola tekstowego renderuje listę rozwijaną, która potrafi wrzucić do pamięci od razu kilka tagów na raz.
+- select – zwykła lista rozwijana, która wrzuca do pamięci tylko jeden tag
+- complex_date – wybór kilku dni pod rząd
