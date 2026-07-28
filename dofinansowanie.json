@@ -1,21 +1,16 @@
 {
-  "dev": {
-    "version": "0.3",
-    "date": "27.06.2026",
-    "author": "Mateusz Parciak",
-    "link": "https://www.instagram.com/ten_mefo/"
-  },
-
   "form_wniosek": [
     {
       "id": "data_wniosku",
       "label": "Data wniosku",
-      "type": "date"
+      "type": "date",
+      "hint": "Data kiedy wniosek trafi do rektoratu. Pamiętaj, że w środy rektorat jest zamknięty dla studentów!"
     },
     {
       "id": "wybor_organizacji",
       "label": "Organizator",
       "type": "select_complex",
+      "hint": "Kto jest odpowiedzialny złożenie wniosku i organizację przedsięwzięcia. Wybierz swój wydział.",
       "options": [
         {
           "name": "Parlament Samorządu Studenckiego",
@@ -133,7 +128,7 @@
       "label": "Nazwa wydarzenia",
       "type": "text",
       "placeholder": "Wpisz...",
-      "hint": "Nazwa wydarzenia, najlepiej taka jak się pojawia w mediach. np. \"Juwenalia 2069\", \"Kawa z Dziekanem\", \"Mikołajki w Betoniarce\" itd."
+      "hint": "Nazwa wydarzenia, najlepiej taka jak się pojawia w mediach. np.  \"Juwenalia 2069\", \"Kawa z Dziekanem\", \"Mikołajki w Betoniarce\" itd."
     },
     {
       "id": "data_przedsięwzięcia",
