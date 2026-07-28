@@ -1,5 +1,7 @@
 @import "tailwindcss";
-
+@theme {
+  --color-pss: #293383;
+}
 :root {
   --text: #6b6375;
   --text-h: #08060d;

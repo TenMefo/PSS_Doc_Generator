@@ -23,3 +23,8 @@
 - select_complex – Kod wyłapuje tę nazwę i zamiast zwykłego pola tekstowego renderuje listę rozwijaną, która potrafi wrzucić do pamięci od razu kilka tagów na raz.
 - select – zwykła lista rozwijana, która wrzuca do pamięci tylko jeden tag
 - complex_date – wybór kilku dni pod rząd
+
+### Szablony dokumentów
+- Lista dostępnych dokumentów jest w `public/templates.json`.
+- Każdy szablon ma własny plik JSON z polami formularza i własny plik `.docx`.
+- Żeby dodać nowy dokument, dopisz wpis do `templates.json` i dodaj odpowiadające mu pliki do `public/`.
