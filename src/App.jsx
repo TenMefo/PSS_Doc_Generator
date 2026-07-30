@@ -68,12 +68,77 @@ const extractDateRange = (complexDateValue) => {
     };
 };
 
+const createCostRow = (overrides = {}) => ({
+    id: overrides.id ?? (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    description: overrides.description ?? '',
+    quantity: overrides.quantity ?? '1',
+    unitPrice: overrides.unitPrice ?? '',
+    amount: overrides.amount ?? '',
+    sourceType: overrides.sourceType ?? 'option',
+    source: overrides.source ?? '',
+    customSource: overrides.customSource ?? '',
+});
+
+const createInitialCostRows = (count = 1) => Array.from({ length: count }, () => createCostRow());
+
+const parseMoneyValue = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    const normalized = String(value).replace(/\s/g, '').replace(',', '.');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatMoneyValue = (value) => value.toLocaleString('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const createEmptyCostExportRow = () => ({
+    lp: '',
+    opis: '',
+    ilosc: '',
+    cena_jednostkowa: '',
+    kwota: '',
+    zrodlo_finansowania: '',
+});
+
+const padCostRows = (rows, minRows = 5) => {
+    const padded = [...rows];
+    while (padded.length < minRows) {
+        padded.push(createEmptyCostExportRow());
+    }
+    return padded;
+};
+
+const validateCostRows = (rows) => {
+    for (const [index, row] of rows.entries()) {
+        const rowNumber = index + 1;
+        if (!String(row.description ?? '').trim()) return `Wiersz ${rowNumber}: uzupełnij wyszczególnienie kosztów.`;
+        if (!String(row.quantity ?? '').trim()) return `Wiersz ${rowNumber}: uzupełnij ilość.`;
+        if (!String(row.unitPrice ?? '').trim()) return `Wiersz ${rowNumber}: uzupełnij cenę jednostkową.`;
+
+        const quantity = Number(String(row.quantity).replace(',', '.'));
+        const unitPrice = parseMoneyValue(row.unitPrice);
+        if (!Number.isFinite(quantity) || quantity <= 0) return `Wiersz ${rowNumber}: ilość musi być większa od 0.`;
+        if (!Number.isFinite(unitPrice) || unitPrice <= 0) return `Wiersz ${rowNumber}: cena jednostkowa musi być większa od 0.`;
+
+        if (row.sourceType === 'custom') {
+            if (!String(row.customSource ?? '').trim()) return `Wiersz ${rowNumber}: uzupełnij źródło finansowania.`;
+        } else if (!String(row.source ?? '').trim()) {
+            return `Wiersz ${rowNumber}: uzupełnij źródło finansowania.`;
+        }
+    }
+
+    return '';
+};
+
 const createInitialFormData = (todayStr, defaultValues = {}) => ({
     typ_wniosku: 'wydarzenie',
     data_wniosku: todayStr,
     opiekun: defaultValues.opiekun ?? 'Prorektor ds. Studenckich',
     rok_preliminarz: String(new Date().getFullYear()),
     zgodny_z_planem: true,
+    bezkosztowe: false,
     liczba_uczestników: '',
 });
 
@@ -93,7 +158,9 @@ function App() {
     const [templateError, setTemplateError] = useState('');
     const [formData, setFormData] = useState(() => createInitialFormData(todayStr));
     const [complexDates, setComplexDates] = useState({});
+    const [costRows, setCostRows] = useState(() => createInitialCostRows());
     const formUi = templateData?.ui?.form;
+    const costUi = templateData?.form_koszty;
 
     useEffect(() => {
         let isMounted = true;
@@ -162,6 +229,7 @@ function App() {
                     setTemplateData(data);
                     setFormData(createInitialFormData(todayStr, data.ui?.form?.defaultValues));
                     setComplexDates({});
+                    setCostRows(createInitialCostRows(data.form_koszty?.minRows ?? 1));
                 }
             } catch (error) {
                 if (isMounted) {
@@ -251,6 +319,48 @@ function App() {
         });
     };
 
+    const handleCostRowChange = (rowId, field, value) => {
+        setCostRows((prev) => prev.map((row) => {
+            if (row.id !== rowId) return row;
+
+            if (field === 'source') {
+                if (value === '__custom__') {
+                    return {
+                        ...row,
+                        sourceType: 'custom',
+                        source: '',
+                        customSource: '',
+                    };
+                }
+
+                return {
+                    ...row,
+                    sourceType: 'option',
+                    source: value,
+                    customSource: '',
+                };
+            }
+
+            return {
+                ...row,
+                [field]: value,
+            };
+        }));
+    };
+
+    const handleAddCostRow = () => {
+        const maxRows = costUi?.maxRows ?? 10;
+        setCostRows((prev) => (prev.length >= maxRows ? prev : [...prev, createCostRow()]));
+    };
+
+    const handleRemoveCostRow = (rowId) => {
+        const minRows = costUi?.minRows ?? 1;
+        setCostRows((prev) => {
+            if (prev.length <= minRows) return prev;
+            return prev.filter((row) => row.id !== rowId);
+        });
+    };
+
     const isPrzedsięwzięcieTooShort = () => {
         if (!formData.data_wniosku) return false;
 
@@ -273,6 +383,7 @@ function App() {
         setSelectedTemplateId(templates[0]?.id ?? '');
         setFormData(createInitialFormData(todayStr, formUi?.defaultValues));
         setComplexDates({});
+        setCostRows(createInitialCostRows());
     };
 
     const generateDocument = async () => {
@@ -286,6 +397,14 @@ function App() {
             if (!response.ok) {
                 alert('Nie udało się pobrać szablonu');
                 return;
+            }
+
+            if (!formData.bezkosztowe) {
+                const costValidationError = validateCostRows(costRows);
+                if (costValidationError) {
+                    alert(costValidationError);
+                    return;
+                }
             }
 
             const content = await response.arrayBuffer();
@@ -302,6 +421,24 @@ function App() {
             if (finalData.data_rozliczenia) {
                 finalData.data_rozliczenia = format(parseISO(finalData.data_rozliczenia), 'dd.MM.yyyy');
             }
+
+            const renderedCostRows = formData.bezkosztowe
+                ? padCostRows([], 5)
+                : padCostRows(costRows.map((row, index) => ({
+                    lp: index + 1,
+                    opis: row.description,
+                    ilosc: row.quantity || '1',
+                    cena_jednostkowa: row.unitPrice,
+                    kwota: formatMoneyValue(parseMoneyValue(row.quantity) * parseMoneyValue(row.unitPrice)),
+                    zrodlo_finansowania: row.sourceType === 'custom' ? row.customSource : row.source,
+                })), 5);
+
+            finalData.koszty = renderedCostRows;
+            finalData.koszt_całkowity = formData.bezkosztowe
+                ? '0,00'
+                : formatMoneyValue(
+                    renderedCostRows.reduce((sum, row) => sum + (parseMoneyValue(row.quantity) * parseMoneyValue(row.unitPrice)), 0),
+                );
 
             const eventRange = extractDateRange(complexDates['data_przedsięwzięcia']);
             finalData.dzien_tekst = `${strikeText('dniu')}/dniach`;
@@ -359,8 +496,12 @@ function App() {
                     templateData={templateData}
                     ui={formUi}
                     formData={formData}
+                    costRows={costRows}
                     complexDates={complexDates}
                     onChange={handleChange}
+                    onCostRowChange={handleCostRowChange}
+                    onAddCostRow={handleAddCostRow}
+                    onRemoveCostRow={handleRemoveCostRow}
                     onComplexDateChange={handleComplexDateChange}
                     onComplexSelect={handleComplexSelect}
                     isPrzedsięwzięcieTooShort={isPrzedsięwzięcieTooShort}

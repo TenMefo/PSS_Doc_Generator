@@ -219,7 +219,34 @@
       "hint": "Nazwa miejsca oraz dokładny adres (maisto też) np. \"CKS Pinokio, ul. Sikorskiego 29, 71-072 Szczecin\""
     }
   ],
-
+  "form_koszty": {
+    "title": "Tabela kosztów",
+    "minRows": 1,
+    "maxRows": 10,
+    "defaultQuantity": "1",
+    "addRowLabel": "Dodaj pozycję",
+    "removeRowLabel": "Usuń",
+    "columns": {
+      "description": "Wyszczególnienie kosztów",
+      "quantity": "Ilość",
+      "unitPrice": "Cena jednostkowa",
+      "source": "Źródło finansowania"
+    },
+    "columnHints": {
+      "description": "Krótki opis pozycji kosztowej.",
+      "quantity": "Wpisz liczbę sztuk; domyślnie 1.",
+      "unitPrice": "Cena jednej sztuki lub usługi.",
+      "source": "Wybierz dostępne źródło lub wpisz własne."
+    },
+    "sourceOptions": [
+      "Dofinansowanie PSS",
+      "Środki własne",
+      "Wpłaty uczestników",
+      "Inne",
+      "Wpisz własne"
+    ],
+    "customSourcePlaceholder": "Wpisz własne źródło finansowania"
+  },
   "form_odpowiedzialny": [
     {
       "id": "odpowiedzialny_imie",
