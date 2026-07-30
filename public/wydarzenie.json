@@ -120,6 +120,18 @@
           }
         }
       ]
+    },
+    {
+      "id": "rok_preliminarz",
+      "label": "Rok preliminarza",
+      "type": "number",
+      "placeholder": "Wpisz..."
+    },
+    {
+      "id": "zgodny_z_planem",
+      "label": "Preliminarz zgodny z planem",
+      "type": "checkbox",
+      "hint": "Zaznacz, jeśli w dokumencie ma zostać TAK."
     }
   ],
   "form_wydarzenie": [
@@ -149,6 +161,12 @@
       "type": "textarea",
       "placeholder": "Celem przedsięwzięcia jest...",
       "hint": "Opis i cel wydarzenia, najlepiej zwięzły i precyzyjny ale jednocześnie podkreślający znaczenie. Celem może być np. \"integracja społeczności akademickiej\", \"promocja zdrowego stylu życia\", \"zwiększenie poczucia wspólnoty\",\"promocja sportowej rywalizacji\" itd."
+    },
+    {
+      "id": "liczba_uczestników",
+      "label": "Liczba uczestników",
+      "type": "number",
+      "placeholder": "Wpisz liczbę lub zostaw puste"
     }
   ],
   "form_zakup": [
@@ -186,6 +204,12 @@
       "type": "text",
       "placeholder": "Miasto...",
       "hint": "Miejscowość, w której odbędzie się wyjazd."
+    },
+    {
+      "id": "liczba_uczestników",
+      "label": "Liczba uczestników",
+      "type": "number",
+      "placeholder": "Wpisz liczbę lub zostaw puste"
     },
     {
       "id": "miejsce_oraz_adres",

@@ -7,6 +7,8 @@ import TemplatePicker from './components/TemplatePicker.jsx';
 import TemplateForm from './components/TemplateForm.jsx';
 import AppFooter from './components/AppFooter.jsx';
 
+const strikeText = (text) => text.split('').join('\u0336') + '\u0336';
+
 const calculateDefaultRozliczenie = (dateStr, rozliczenieRules = {}) => {
     if (!dateStr) return '';
     const baseDate = parseISO(dateStr);
@@ -41,10 +43,38 @@ const formatComplexDate = (startStr, endStr) => {
     return `${startDay}.${startMonth}-${endDay}.${endMonth}.${endYear}`;
 };
 
+const calculateDays = (startStr, endStr) => {
+    if (!startStr) return 0;
+    if (!endStr) return 1;
+
+    return Math.max(differenceInDays(parseISO(endStr), parseISO(startStr)) + 1, 1);
+};
+
+const extractDateRange = (complexDateValue) => {
+    if (!complexDateValue) {
+        return { start: '', end: '' };
+    }
+
+    if (Array.isArray(complexDateValue)) {
+        return {
+            start: complexDateValue[0] ?? '',
+            end: complexDateValue[1] ?? '',
+        };
+    }
+
+    return {
+        start: complexDateValue.start ?? complexDateValue.from ?? '',
+        end: complexDateValue.end ?? complexDateValue.to ?? '',
+    };
+};
+
 const createInitialFormData = (todayStr, defaultValues = {}) => ({
     typ_wniosku: 'wydarzenie',
     data_wniosku: todayStr,
     opiekun: defaultValues.opiekun ?? 'Prorektor ds. Studenckich',
+    rok_preliminarz: String(new Date().getFullYear()),
+    zgodny_z_planem: true,
+    liczba_uczestników: '',
 });
 
 const resolvePublicUrl = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
@@ -178,9 +208,10 @@ function App() {
     };
 
     const handleChange = (e) => {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         setFormData((prev) => syncRozliczenie({
             ...prev,
-            [e.target.name]: e.target.value,
+            [e.target.name]: value,
         }, complexDates));
     };
 
@@ -271,6 +302,35 @@ function App() {
             if (finalData.data_rozliczenia) {
                 finalData.data_rozliczenia = format(parseISO(finalData.data_rozliczenia), 'dd.MM.yyyy');
             }
+
+            const eventRange = extractDateRange(complexDates['data_przedsięwzięcia']);
+            finalData.dzien_tekst = `${strikeText('dniu')}/dniach`;
+            finalData.dzienTekst = finalData.dzien_tekst;
+            if (calculateDays(eventRange.start, eventRange.end) <= 1) {
+                finalData.dzien_tekst = `dniu/${strikeText('dniach')}`;
+                finalData.dzienTekst = finalData.dzien_tekst;
+            }
+
+            finalData.cel_tekst = formData.typ_wniosku === 'wyjazd'
+                ? `${strikeText('przedsięwzięcia')}/wyjazdu`
+                : `przedsięwzięcia/${strikeText('wyjazdu')}`;
+            finalData.celTekst = finalData.cel_tekst;
+
+            finalData.organizator_tekst = formData.organizacja_mianownik
+                ? `organizacja/${strikeText('studenckie koło naukowe')}`
+                : `organizacja/studenckie koło naukowe`;
+            finalData.organizatorTekst = finalData.organizator_tekst;
+
+            finalData.preliminarz_tekst = formData.zgodny_z_planem
+                ? `TAK/${strikeText('NIE')}`
+                : `${strikeText('TAK')}/NIE`;
+            finalData.preliminarzTekst = finalData.preliminarz_tekst;
+
+            const startDate = eventRange.start ? format(parseISO(eventRange.start), 'dd.MM.yyyy') : '';
+            const endDate = eventRange.end ? format(parseISO(eventRange.end), 'dd.MM.yyyy') : '';
+            finalData.data_wyjazdu_start = formData.typ_wniosku === 'wyjazd' ? startDate : '';
+            finalData['data_wyjazdu_powrót'] = formData.typ_wniosku === 'wyjazd' ? endDate : '';
+            finalData.data_wyjazdu_powrot = finalData['data_wyjazdu_powrót'];
 
             doc.render({
                 ...(templateData.static_tags ?? {}),

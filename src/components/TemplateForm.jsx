@@ -116,6 +116,21 @@ export default function TemplateForm({
             );
         }
 
+        if (field.type === 'checkbox') {
+            return (
+                <label key={field.id} className={labelClass}>
+                    <span className={spanTextClass}>{field.label}: {hintElement}</span>
+                    <input
+                        type="checkbox"
+                        name={field.id}
+                        checked={Boolean(formData[field.id])}
+                        onChange={onChange}
+                        className="mt-3 h-5 w-5 accent-blue-600"
+                    />
+                </label>
+            );
+        }
+
         if (field.type === 'complex_date') {
             const currentComplex = complexDates[field.id] || { start: '', end: '' };
 
