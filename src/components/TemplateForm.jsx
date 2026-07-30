@@ -1,6 +1,29 @@
 const labelClass = 'flex flex-row items-start gap-4 w-full my-1';
 const spanTextClass = 'w-2/5 text-right font-medium text-gray-700 pt-2 flex items-center justify-end gap-1';
 const inputClass = 'flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-full';
+const defaultFormUi = {
+    documentLabel: 'Dokument',
+    changeDocument: 'Zmień dokument',
+    typeLabel: 'Typ przedsięwzięcia',
+    typeOptions: [
+        { value: 'wydarzenie', label: 'Wydarzenie' },
+        { value: 'zakup', label: 'Zakup' },
+        { value: 'wyjazd', label: 'Wyjazd' },
+    ],
+    selectPlaceholder: 'Wybierz...',
+    loadingText: 'Ładowanie formularza...',
+    generateButtonText: 'Generuj gotowy dokument',
+    dateRangeSeparator: 'do',
+    sectionTitles: {
+        details: 'Szczegóły przedsięwzięcia',
+        responsible: 'Dane osobowe osoby odpowiedzialnej za rozliczanie wydarzenia',
+    },
+    fieldWarnings: {},
+    defaultValues: {
+        opiekun: 'Prorektor ds. Studenckich',
+        opiekunDlaWydzialu: 'Przewodniczący PSS',
+    },
+};
 
 const renderHint = (hint) => (
     <div className="relative group inline-block cursor-pointer ml-1 select-none text-gray-400 hover:text-blue-500">
@@ -15,6 +38,7 @@ const renderHint = (hint) => (
 export default function TemplateForm({
     activeTemplate,
     templateData,
+    ui,
     formData,
     complexDates,
     onChange,
@@ -26,8 +50,28 @@ export default function TemplateForm({
     loading,
     error,
 }) {
+    const formUi = {
+        ...defaultFormUi,
+        ...(ui ?? {}),
+        sectionTitles: {
+            ...defaultFormUi.sectionTitles,
+            ...(ui?.sectionTitles ?? {}),
+        },
+        fieldWarnings: {
+            ...defaultFormUi.fieldWarnings,
+            ...(ui?.fieldWarnings ?? {}),
+        },
+        defaultValues: {
+            ...defaultFormUi.defaultValues,
+            ...(ui?.defaultValues ?? {}),
+        },
+        typeOptions: ui?.typeOptions ?? defaultFormUi.typeOptions,
+    };
+
     const renderField = (field) => {
         const hintElement = field.hint ? renderHint(field.hint) : null;
+        const fieldWarning = formUi.fieldWarnings[field.id];
+        const warningMessage = fieldWarning?.message ?? '⚠️ Uwaga: Wniosek należy złożyć przynajmniej 14 dni przed przedsięwzięciem!';
 
         if (field.type === 'select_complex') {
             return (
@@ -40,7 +84,7 @@ export default function TemplateForm({
                             onComplexSelect(JSON.parse(e.target.value));
                         }}
                     >
-                        <option value="">Wybierz...</option>
+                        <option value="">{formUi.selectPlaceholder}</option>
                         {field.options.map((opt) => (
                             <option key={opt.name} value={JSON.stringify(opt.tags)}>
                                 {opt.name}
@@ -61,10 +105,10 @@ export default function TemplateForm({
                         className={inputClass}
                         value={formData[field.id] || ''}
                     >
-                        <option value="">Wybierz...</option>
-                        {field.options.map((opt) => (
-                            <option key={opt} value={opt}>
-                                {opt}
+                        <option value="">{formUi.selectPlaceholder}</option>
+                        {(field.options ?? formUi.typeOptions).map((opt) => (
+                            <option key={opt.value ?? opt} value={opt.value ?? opt}>
+                                {opt.label ?? opt}
                             </option>
                         ))}
                     </select>
@@ -86,7 +130,7 @@ export default function TemplateForm({
                                 value={currentComplex.start}
                                 onChange={(e) => onComplexDateChange(field.id, 'start', e.target.value)}
                             />
-                            <span className="self-center text-gray-500">do</span>
+                            <span className="self-center text-gray-500">{formUi.dateRangeSeparator}</span>
                             <input
                                 type="date"
                                 className={inputClass}
@@ -99,7 +143,7 @@ export default function TemplateForm({
                         <div className="flex flex-row w-full">
                             <div className="w-2/5"></div>
                             <p className="flex-1 text-red-500 text-xs font-semibold mt-1 animate-pulse ml-4">
-                                ⚠️ Uwaga: Wniosek należy złożyć przynajmniej 14 dni przed przedsięwzięciem!
+                                {warningMessage}
                             </p>
                         </div>
                     )}
@@ -139,7 +183,7 @@ export default function TemplateForm({
                     <div className="flex flex-row w-full">
                         <div className="w-2/5"></div>
                         <p className="flex-1 text-red-500 text-xs font-semibold mt-1 animate-pulse ml-4">
-                            ⚠️ Uwaga: Wniosek należy złożyć przynajmniej 14 dni przed przedsięwzięciem!
+                            {warningMessage}
                         </p>
                     </div>
                 )}
@@ -157,31 +201,33 @@ export default function TemplateForm({
     return (
         <div className="flex flex-col gap-4 w-full border border-gray-200 p-6 rounded-lg bg-white shadow-sm text-left">
             <div className="flex items-center justify-between gap-4">
-                <p className="font-semibold text-gray-700">Dokument: {activeTemplate?.label}</p>
+                <p className="font-semibold text-gray-700">{formUi.documentLabel}: {activeTemplate?.label}</p>
                 <button
                     onClick={onResetTemplateSelection}
                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                    Zmień dokument
+                    {formUi.changeDocument}
                 </button>
             </div>
 
-            {loading && <p className="text-gray-500 text-center">Ładowanie formularza...</p>}
+            {loading && <p className="text-gray-500 text-center">{formUi.loadingText}</p>}
             {error && <p className="text-red-600 text-center">{error}</p>}
 
             {!loading && templateData && (
                 <>
                     <label className={labelClass}>
-                        <span className={spanTextClass}>Typ przedsięwzięcia:</span>
+                        <span className={spanTextClass}>{formUi.typeLabel}:</span>
                         <select
                             name="typ_wniosku"
                             value={formData.typ_wniosku}
                             onChange={onChange}
                             className={inputClass}
                         >
-                            <option value="wydarzenie">Wydarzenie</option>
-                            <option value="zakup">Zakup</option>
-                            <option value="wyjazd">Wyjazd</option>
+                            {formUi.typeOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
                         </select>
                     </label>
 
@@ -189,14 +235,14 @@ export default function TemplateForm({
 
                     <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
                         <p className="font-semibold text-gray-700 text-center pt-0 mb-2">
-                            Szczegóły przedsięwzięcia
+                            {formUi.sectionTitles.details}
                         </p>
                         {renderFields(conditionalForms[formData.typ_wniosku] ?? [])}
                     </div>
 
                     <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
                         <p className="font-semibold text-gray-700 text-center pt-0 mb-2">
-                            Dane osobowe osoby odpowiedzialnej za <span className="font-bold">rozliczanie</span> wydarzenia
+                            {formUi.sectionTitles.responsible}
                         </p>
                         {renderFields(templateData.form_odpowiedzialny)}
                     </div>
@@ -210,7 +256,7 @@ export default function TemplateForm({
                             onClick={onGenerateDocument}
                             className="bg-blue-500 hover:bg-blue-600 transition-colors text-white font-bold py-2 px-6 rounded shadow"
                         >
-                            Generuj gotowy dokument
+                            {formUi.generateButtonText}
                         </button>
                     </div>
                 </>

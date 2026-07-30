@@ -7,16 +7,17 @@ import TemplatePicker from './components/TemplatePicker.jsx';
 import TemplateForm from './components/TemplateForm.jsx';
 import AppFooter from './components/AppFooter.jsx';
 
-const calculateDefaultRozliczenie = (dateStr) => {
+const calculateDefaultRozliczenie = (dateStr, rozliczenieRules = {}) => {
     if (!dateStr) return '';
     const baseDate = parseISO(dateStr);
-    let targetDate = addDays(baseDate, 14);
+    const baseDays = rozliczenieRules.baseDays ?? 14;
+    const targetDayAdjustments = rozliczenieRules.targetDayAdjustments ?? {};
+    let targetDate = addDays(baseDate, baseDays);
     const dayOfWeek = getDay(targetDate);
+    const additionalDays = targetDayAdjustments[dayOfWeek] ?? 0;
 
-    if (dayOfWeek === 3 || dayOfWeek === 0) {
-        targetDate = addDays(baseDate, 15);
-    } else if (dayOfWeek === 6) {
-        targetDate = addDays(baseDate, 16);
+    if (additionalDays > 0) {
+        targetDate = addDays(targetDate, additionalDays);
     }
 
     return format(targetDate, 'yyyy-MM-dd');
@@ -40,10 +41,10 @@ const formatComplexDate = (startStr, endStr) => {
     return `${startDay}.${startMonth}-${endDay}.${endMonth}.${endYear}`;
 };
 
-const createInitialFormData = (todayStr) => ({
+const createInitialFormData = (todayStr, defaultValues = {}) => ({
     typ_wniosku: 'wydarzenie',
     data_wniosku: todayStr,
-    opiekun: 'Prorektor ds. Studenckich',
+    opiekun: defaultValues.opiekun ?? 'Prorektor ds. Studenckich',
 });
 
 const resolvePublicUrl = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
@@ -62,6 +63,7 @@ function App() {
     const [templateError, setTemplateError] = useState('');
     const [formData, setFormData] = useState(() => createInitialFormData(todayStr));
     const [complexDates, setComplexDates] = useState({});
+    const formUi = templateData?.ui?.form;
 
     useEffect(() => {
         let isMounted = true;
@@ -128,7 +130,7 @@ function App() {
 
                 if (isMounted) {
                     setTemplateData(data);
-                    setFormData(createInitialFormData(todayStr));
+                    setFormData(createInitialFormData(todayStr, data.ui?.form?.defaultValues));
                     setComplexDates({});
                 }
             } catch (error) {
@@ -160,6 +162,7 @@ function App() {
     };
 
     const syncRozliczenie = (nextFormData, nextComplexDates) => {
+        const rozliczenieRules = formUi?.rules?.rozliczenie ?? {};
         const baseDateForRozliczenie = resolveRozliczenieBaseDate(nextFormData, nextComplexDates);
 
         if (!baseDateForRozliczenie) {
@@ -170,7 +173,7 @@ function App() {
 
         return {
             ...nextFormData,
-            data_rozliczenia: calculateDefaultRozliczenie(baseDateForRozliczenie),
+            data_rozliczenia: calculateDefaultRozliczenie(baseDateForRozliczenie, rozliczenieRules),
         };
     };
 
@@ -182,10 +185,11 @@ function App() {
     };
 
     const handleComplexSelect = (selectedTags) => {
-        let opiekunValue = 'Prorektor ds. Studenckich';
+        const defaultValues = formUi?.defaultValues ?? {};
+        let opiekunValue = defaultValues.opiekun ?? 'Prorektor ds. Studenckich';
 
-        if (selectedTags.organizacja_mianownik && selectedTags.organizacja_mianownik.includes('Wydział')) {
-            opiekunValue = 'Przewodniczący PSS';
+        if (selectedTags.wydzial) {
+            opiekunValue = defaultValues.opiekunDlaWydzialu ?? 'Przewodniczący PSS';
         }
 
         setFormData((prev) => syncRozliczenie({
@@ -219,6 +223,7 @@ function App() {
     const isPrzedsięwzięcieTooShort = () => {
         if (!formData.data_wniosku) return false;
 
+        const leadTimeDays = formUi?.fieldWarnings?.['data_przedsięwzięcia']?.leadTimeDays ?? 14;
         const eventDateStr = formData.typ_wniosku === 'wyjazd'
             ? complexDates['data_przedsięwzięcia']?.start
             : formData['data_przedsięwzięcia'];
@@ -227,7 +232,7 @@ function App() {
 
         const start = parseISO(formData.data_wniosku);
         const eventDate = parseISO(eventDateStr);
-        return differenceInDays(eventDate, start) < 14;
+        return differenceInDays(eventDate, start) < leadTimeDays;
     };
 
     const resetTemplateSelection = () => {
@@ -235,13 +240,13 @@ function App() {
         setTemplateData(null);
         setTemplateError('');
         setSelectedTemplateId(templates[0]?.id ?? '');
-        setFormData(createInitialFormData(todayStr));
+        setFormData(createInitialFormData(todayStr, formUi?.defaultValues));
         setComplexDates({});
     };
 
     const generateDocument = async () => {
         if (!activeTemplate || !templateData) {
-            alert('Najpierw wybierz dokument.');
+            alert(templatesConfig?.ui?.messages?.chooseDocumentFirst ?? 'Najpierw wybierz dokument.');
             return;
         }
 
@@ -292,6 +297,7 @@ function App() {
                 <TemplateForm
                     activeTemplate={activeTemplate}
                     templateData={templateData}
+                    ui={formUi}
                     formData={formData}
                     complexDates={complexDates}
                     onChange={handleChange}
@@ -311,6 +317,7 @@ function App() {
                     onContinue={() => selectedTemplate && setActiveTemplate(selectedTemplate)}
                     loading={templatesLoading}
                     error={templatesError}
+                    ui={templatesConfig?.ui?.templatePicker}
                 />
             )}
 

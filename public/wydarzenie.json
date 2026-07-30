@@ -233,5 +233,50 @@
   },
   "static_tags": {
     "opiekun": "Przewodniczący PSS"
+  },
+  "ui": {
+    "form": {
+      "documentLabel": "Dokument",
+      "changeDocument": "Zmień dokument",
+      "typeLabel": "Typ przedsięwzięcia",
+      "typeOptions": [
+        {
+          "value": "wydarzenie",
+          "label": "Wydarzenie"
+        },
+        {
+          "value": "zakup",
+          "label": "Zakup"
+        },
+        {
+          "value": "wyjazd",
+          "label": "Wyjazd"
+        }
+      ],
+      "sectionTitles": {
+        "details": "Szczegóły przedsięwzięcia",
+        "responsible": "Dane osobowe osoby odpowiedzialnej za rozliczanie wydarzenia"
+      },
+      "fieldWarnings": {
+        "data_przedsięwzięcia": {
+          "message": "⚠️ Uwaga: Wniosek należy złożyć przynajmniej 14 dni przed przedsięwzięciem!",
+          "leadTimeDays": 14
+        }
+      },
+      "defaultValues": {
+        "opiekun": "Prorektor ds. Studenckich",
+        "opiekunDlaWydzialu": "Przewodniczący PSS"
+      },
+      "rules": {
+        "rozliczenie": {
+          "baseDays": 14,
+          "targetDayAdjustments": {
+            "0": 1,
+            "3": 1,
+            "6": 2
+          }
+        }
+      }
+    }
   }
 }

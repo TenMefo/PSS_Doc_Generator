@@ -1,5 +1,3 @@
-### AI Slop - ale działa... poniekąd
-
 ### TO DO:
 - dostosować json do form_zakupy oraz form_wyjazdy
 - tabela kosztów (+ zliczanie koszt_całkowity oraz koszt_wymagany)
@@ -28,3 +26,4 @@
 - Lista dostępnych dokumentów jest w `public/templates.json`.
 - Każdy szablon ma własny plik JSON z polami formularza i własny plik `.docx`.
 - Żeby dodać nowy dokument, dopisz wpis do `templates.json` i dodaj odpowiadające mu pliki do `public/`.
+- Instrukcja dodawania template

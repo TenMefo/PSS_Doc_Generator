@@ -6,6 +6,16 @@
     "author": "Mateusz Parciak",
     "link": "https://www.instagram.com/ten_mefo/"
   },
+  "ui": {
+    "templatePicker": {
+      "title": "Wybierz dokument",
+      "loading": "Ładowanie listy dokumentów...",
+      "continueButton": "Przejdź do formularza"
+    },
+    "messages": {
+      "chooseDocumentFirst": "Najpierw wybierz dokument."
+    }
+  },
   "templates": [
     {
       "id": "dofinansowanie",

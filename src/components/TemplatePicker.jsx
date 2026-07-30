@@ -5,12 +5,20 @@ export default function TemplatePicker({
     onContinue,
     loading,
     error,
+    ui,
 }) {
+    const pickerUi = {
+        title: 'Wybierz dokument',
+        loading: 'Ładowanie listy dokumentów...',
+        continueButton: 'Przejdź do formularza',
+        ...(ui ?? {}),
+    };
+
     return (
         <div className="flex flex-col gap-4 w-full border border-gray-200 p-6 rounded-lg bg-white shadow-sm text-left">
-            <p className="font-semibold text-gray-700 text-center">Wybierz dokument</p>
+            <p className="font-semibold text-gray-700 text-center">{pickerUi.title}</p>
 
-            {loading && <p className="text-gray-500 text-center">Ładowanie listy dokumentów...</p>}
+            {loading && <p className="text-gray-500 text-center">{pickerUi.loading}</p>}
             {error && <p className="text-red-600 text-center">{error}</p>}
 
             {!loading && !error && (
@@ -41,7 +49,7 @@ export default function TemplatePicker({
                             disabled={!selectedTemplateId}
                             className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-white font-bold py-2 px-6 rounded shadow"
                         >
-                            Przejdź do formularza
+                            {pickerUi.continueButton}
                         </button>
                     </div>
                 </>
