@@ -20,7 +20,12 @@ const defaultCostUi = {
         unitPrice: 'Cena jednej sztuki lub usługi.',
         source: 'Wybierz dostępne źródło lub wpisz własne.',
     },
-    sourceOptions: ['Dofinansowanie PSS', 'Środki własne', 'Wpłaty uczestników', 'Inne', 'Wpisz własne'],
+    sourceOptions: [
+        { label: 'Środki PSS', value: 'WYDZIELONE ŚRODKI NA DZIAŁALNOŚĆ NAUKOWĄ, WYCHOWAWCZĄ, KULTURALNĄ I SPORTOWO-REKREACYJNĄ STUDENTÓW POZ. SAMORZĄD STUDENCKI' },
+        { label: 'Nagroda za ankietyzację', value: 'Nagroda za ankietyzację' },
+        { label: 'Zbiórka koleżeńska', value: 'Zbiórka koleżeńska' },
+        { label: 'Inne (do wpisania)', value: '__custom__' },
+    ],
     customSourcePlaceholder: 'Wpisz własne źródło finansowania',
 };
 const defaultUczestnicyUi = {
@@ -121,6 +126,7 @@ export default function TemplateForm({
     onResetTemplateSelection,
     loading,
     error,
+    financingSourceOptions,
 }) {
     const formUi = {
         ...defaultFormUi,
@@ -150,7 +156,7 @@ export default function TemplateForm({
             ...defaultCostUi.columnHints,
             ...(templateData?.form_koszty?.columnHints ?? {}),
         },
-        sourceOptions: templateData?.form_koszty?.sourceOptions ?? defaultCostUi.sourceOptions,
+        sourceOptions: financingSourceOptions ?? templateData?.form_koszty?.sourceOptions ?? defaultCostUi.sourceOptions,
     };
     const uczestnicyUi = {
         ...defaultUczestnicyUi,
@@ -467,11 +473,16 @@ export default function TemplateForm({
                                                 onChange={(e) => onCostRowChange(row.id, 'source', e.target.value)}
                                             >
                                                 <option value="">Wybierz...</option>
-                                                {costUi.sourceOptions.map((option) => (
-                                                    <option key={option} value={option === 'Wpisz własne' ? '__custom__' : option}>
-                                                        {option}
+                                                {costUi.sourceOptions.map((option) => {
+                                                    const normalizedOption = typeof option === 'string'
+                                                        ? { label: option, value: option === 'Wpisz własne' ? '__custom__' : option }
+                                                        : option;
+                                                    return (
+                                                    <option key={normalizedOption.value} value={normalizedOption.value}>
+                                                        {normalizedOption.label}
                                                     </option>
-                                                ))}
+                                                    );
+                                                })}
                                             </select>
                                             {row.sourceType === 'custom' && (
                                                 <input

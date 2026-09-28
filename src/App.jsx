@@ -38,6 +38,28 @@ const combineOrganizerTags = (selectedOptions) => {
     };
 };
 
+const PSS_FUNDS_VALUE = 'WYDZIELONE ŚRODKI NA DZIAŁALNOŚĆ NAUKOWĄ, WYCHOWAWCZĄ, KULTURALNĄ I SPORTOWO-REKREACYJNĄ STUDENTÓW POZ. SAMORZĄD STUDENCKI';
+
+const getFinancingSourceOptions = (templateData, selectedOrganizerNames) => {
+    const organizerField = (templateData?.form_wniosek ?? []).find((field) => field.id === 'wybor_organizacji');
+    const selectedOrganizers = (organizerField?.options ?? [])
+        .filter((option) => selectedOrganizerNames.includes(option.name));
+    const deanSources = selectedOrganizers
+        .filter((option) => option.tags?.wydzial)
+        .map((option) => ({
+            label: `Środki w dyspozycji dziekana ${(option.tags.swss ?? '').replace(/^SWSS\s+/, '')}`,
+            value: `Środki w dyspozycji dziekana ${(option.tags.swss ?? '').replace(/^SWSS\s+/, '')}`,
+        }));
+
+    return [
+        { label: 'Środki PSS', value: PSS_FUNDS_VALUE },
+        ...deanSources,
+        { label: 'Nagroda za ankietyzację', value: 'Nagroda za ankietyzację' },
+        { label: 'Zbiórka koleżeńska', value: 'Zbiórka koleżeńska' },
+        { label: 'Inne (do wpisania)', value: '__custom__' },
+    ];
+};
+
 const calculateDefaultRozliczenie = (dateStr, rozliczenieRules = {}) => {
     if (!dateStr) return '';
     const baseDate = parseISO(dateStr);
@@ -167,6 +189,70 @@ const padCostRows = (rows, minRows = 5) => {
     return padded;
 };
 
+const mergeCostSourceCells = (documentXml, renderedCostRows) => {
+    const parser = new DOMParser();
+    const document = parser.parseFromString(documentXml, 'application/xml');
+    const wordNamespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const tables = [...document.getElementsByTagNameNS(wordNamespace, 'tbl')];
+    const costTable = tables.find((table) => table.textContent.includes('Źródło finansowania'));
+
+    if (!costTable) return documentXml;
+
+    const rows = [...costTable.children].filter((node) => node.localName === 'tr');
+    const headerIndex = rows.findIndex((row) => row.textContent.includes('Źródło finansowania'));
+    if (headerIndex < 0) return documentXml;
+
+    const sourceCells = renderedCostRows
+        .map((row, index) => ({
+            source: row.zrodlo_finansowania,
+            row: rows[headerIndex + index + 1],
+        }))
+        .filter(({ source, row }) => source && row);
+
+    const cellChildren = (row) => [...row.children].filter((node) => node.localName === 'tc');
+    const getCellProperties = (cell) => {
+        let properties = [...cell.children].find((node) => node.localName === 'tcPr');
+        if (!properties) {
+            properties = document.createElementNS(wordNamespace, 'w:tcPr');
+            cell.insertBefore(properties, cell.firstChild);
+        }
+        return properties;
+    };
+    const setVerticalMerge = (cell, value) => {
+        const properties = getCellProperties(cell);
+        [...properties.children]
+            .filter((node) => node.localName === 'vMerge')
+            .forEach((node) => properties.removeChild(node));
+        const merge = document.createElementNS(wordNamespace, 'w:vMerge');
+        merge.setAttributeNS(wordNamespace, 'w:val', value);
+        properties.appendChild(merge);
+    };
+
+    let groupStart = 0;
+    while (groupStart < sourceCells.length) {
+        const source = sourceCells[groupStart].source;
+        let groupEnd = groupStart;
+        while (groupEnd + 1 < sourceCells.length && sourceCells[groupEnd + 1].source === source) {
+            groupEnd += 1;
+        }
+
+        if (groupEnd > groupStart) {
+            setVerticalMerge(cellChildren(sourceCells[groupStart].row).at(-1), 'restart');
+            for (let index = groupStart + 1; index <= groupEnd; index += 1) {
+                const cell = cellChildren(sourceCells[index].row).at(-1);
+                setVerticalMerge(cell, 'continue');
+                [...cell.children]
+                    .filter((node) => node.localName !== 'tcPr')
+                    .forEach((node) => cell.removeChild(node));
+            }
+        }
+
+        groupStart = groupEnd + 1;
+    }
+
+    return new XMLSerializer().serializeToString(document);
+};
+
 const validateCostRows = (rows) => {
     for (const [index, row] of rows.entries()) {
         const rowNumber = index + 1;
@@ -224,6 +310,7 @@ function App() {
     const costUi = templateData?.form_koszty;
     const uczestnicyUi = templateData?.form_uczestnicy;
     const uczestnicyAvailable = (uczestnicyUi?.availableFor ?? []).includes(formData.typ_wniosku);
+    const financingSourceOptions = getFinancingSourceOptions(templateData, formData.wybor_organizacji);
 
     useEffect(() => {
         let isMounted = true;
@@ -416,6 +503,12 @@ function App() {
 
             const selectedOptions = allOptions.filter((opt) => nextNames.includes(opt.name));
             const combinedTags = combineOrganizerTags(selectedOptions);
+            const validSourceValues = new Set(getFinancingSourceOptions(templateData, nextNames).map((option) => option.value));
+            setCostRows((rows) => rows.map((row) => (
+                row.sourceType === 'option' && row.source && !validSourceValues.has(row.source)
+                    ? { ...row, source: '' }
+                    : row
+            )));
             const defaultValues = formUi?.defaultValues ?? {};
             const opiekunValue = combinedTags.wydzial
                 ? (defaultValues.opiekunDlaWydzialu ?? 'Przewodniczący PSS')
@@ -628,9 +721,15 @@ function App() {
                 }
             });
 
+            const sortedCostRows = [...costRows].sort((left, right) => {
+                const leftSource = left.sourceType === 'custom' ? left.customSource : left.source;
+                const rightSource = right.sourceType === 'custom' ? right.customSource : right.source;
+                return String(leftSource ?? '').localeCompare(String(rightSource ?? ''), 'pl');
+            });
+
             const renderedCostRows = formData.bezkosztowe
                 ? padCostRows([], 5)
-                : padCostRows(costRows.map((row, index) => ({
+                : padCostRows(sortedCostRows.map((row, index) => ({
                     lp: index + 1,
                     opis: row.description,
                     ilosc: row.quantity || '1',
@@ -690,10 +789,21 @@ function App() {
             finalData['data_wyjazdu_powrót'] = wyjazdEnd;
             finalData.data_wyjazdu_powrot = wyjazdEnd;
 
+            if (Array.isArray(formData.wybor_organizacji) && formData.wybor_organizacji.length > 1) {
+                finalData.odpowiedzialny_funkcja = 'przewodniczącego';
+                finalData.swss = '';
+            }
+
             doc.render({
                 ...(templateData.static_tags ?? {}),
                 ...finalData,
             });
+
+            const mergedDocumentXml = mergeCostSourceCells(
+                doc.getZip().file('word/document.xml').asText(),
+                renderedCostRows,
+            );
+            doc.getZip().file('word/document.xml', mergedDocumentXml);
 
             const blob = doc.getZip().generate({
                 type: 'blob',
@@ -721,6 +831,7 @@ function App() {
                     participantRows={participantRows}
                     uczestnicyUi={uczestnicyUi}
                     uczestnicyAvailable={uczestnicyAvailable}
+                    financingSourceOptions={financingSourceOptions}
                     complexDates={complexDates}
                     onChange={handleChange}
                     onCostRowChange={handleCostRowChange}
