@@ -23,6 +23,29 @@ const defaultCostUi = {
     sourceOptions: ['Dofinansowanie PSS', 'Środki własne', 'Wpłaty uczestników', 'Inne', 'Wpisz własne'],
     customSourcePlaceholder: 'Wpisz własne źródło finansowania',
 };
+const defaultUczestnicyUi = {
+    title: 'Lista uczestników',
+    availableFor: ['wydarzenie', 'wyjazd'],
+    minRows: 1,
+    maxRows: 30,
+    addRowLabel: 'Dodaj uczestnika',
+    removeRowLabel: 'Usuń',
+    countLabel: 'Liczba uczestników',
+    columns: {
+        imie_nazwisko: 'Nazwisko i imię',
+        wydzial: 'Wydział',
+        kierunek: 'Kierunek',
+        rok: 'Rok',
+        kontakt: 'Dane kontaktowe',
+    },
+    columnHints: {
+        imie_nazwisko: 'Imię i nazwisko uczestnika.',
+        wydzial: 'Wydział, na którym studiuje uczestnik.',
+        kierunek: 'Kierunek studiów uczestnika.',
+        rok: 'Rok studiów.',
+        kontakt: 'Telefon lub adres e-mail uczestnika.',
+    },
+};
 const defaultFormUi = {
     documentLabel: 'Dokument',
     changeDocument: 'Zmień dokument',
@@ -73,14 +96,27 @@ export default function TemplateForm({
     ui,
     formData,
     costRows,
+    participantRows,
+    uczestnicyUi: uczestnicyUiProp,
+    uczestnicyAvailable,
     complexDates,
     onChange,
     onCostRowChange,
     onAddCostRow,
     onRemoveCostRow,
+    onParticipantRowChange,
+    onAddParticipantRow,
+    onRemoveParticipantRow,
     onComplexDateChange,
     onComplexSelect,
+    onComplexMultiSelect,
     isPrzedsięwzięcieTooShort,
+    isRozliczenieTooSoon,
+    rozliczenieTouched,
+    onResetRozliczenie,
+    kosztWymaganyTouched,
+    kosztWymaganyDisplay,
+    onResetKosztWymagany,
     onGenerateDocument,
     onResetTemplateSelection,
     loading,
@@ -116,6 +152,18 @@ export default function TemplateForm({
         },
         sourceOptions: templateData?.form_koszty?.sourceOptions ?? defaultCostUi.sourceOptions,
     };
+    const uczestnicyUi = {
+        ...defaultUczestnicyUi,
+        ...(uczestnicyUiProp ?? {}),
+        columns: {
+            ...defaultUczestnicyUi.columns,
+            ...(uczestnicyUiProp?.columns ?? {}),
+        },
+        columnHints: {
+            ...defaultUczestnicyUi.columnHints,
+            ...(uczestnicyUiProp?.columnHints ?? {}),
+        },
+    };
 
     const renderField = (field) => {
         const hintElement = field.hint ? renderHint(field.hint) : null;
@@ -141,6 +189,39 @@ export default function TemplateForm({
                         ))}
                     </select>
                 </label>
+            );
+        }
+
+        if (field.type === 'select_complex_multi') {
+            const selectedNames = Array.isArray(formData[field.id]) ? formData[field.id] : [];
+
+            return (
+                <div key={field.id} className="w-full flex flex-col">
+                    <div className={labelClass}>
+                        <span className={spanTextClass}>{field.label}: {hintElement}</span>
+                        <div className="flex-1 flex flex-col gap-2 border border-gray-300 rounded p-3">
+                            {field.options.map((opt) => (
+                                <label key={opt.name} className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 accent-blue-600"
+                                        checked={selectedNames.includes(opt.name)}
+                                        onChange={(e) => onComplexMultiSelect(field.id, opt.name, e.target.checked, field.options)}
+                                    />
+                                    <span className="text-sm text-gray-700">{opt.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    {selectedNames.length === 0 && (
+                        <div className="flex flex-row w-full">
+                            <div className="w-2/5"></div>
+                            <p className="flex-1 text-red-500 text-xs font-semibold mt-1 ml-4">
+                                Zaznacz przynajmniej jednego organizatora.
+                            </p>
+                        </div>
+                    )}
+                </div>
             );
         }
 
@@ -251,6 +332,31 @@ export default function TemplateForm({
                         </p>
                     </div>
                 )}
+                {field.id === 'data_rozliczenia' && (
+                    <>
+                        {isRozliczenieTooSoon() && (
+                            <div className="flex flex-row w-full">
+                                <div className="w-2/5"></div>
+                                <p className="flex-1 text-red-500 text-xs font-semibold mt-1 animate-pulse ml-4">
+                                    {formUi.fieldWarnings['data_rozliczenia']?.message
+                                        ?? '⚠️ Uwaga: termin rozliczenia jest krótszy niż wymagane 14 dni od przedsięwzięcia!'}
+                                </p>
+                            </div>
+                        )}
+                        {rozliczenieTouched && (
+                            <div className="flex flex-row w-full">
+                                <div className="w-2/5"></div>
+                                <button
+                                    type="button"
+                                    onClick={onResetRozliczenie}
+                                    className="flex-1 text-left text-blue-600 hover:text-blue-800 text-xs font-medium mt-1 ml-4"
+                                >
+                                    Przywróć sugerowany termin (14 dni + najbliższy dzień roboczy)
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         );
     };
@@ -263,6 +369,11 @@ export default function TemplateForm({
         const isBezkosztowe = Boolean(formData.bezkosztowe);
         const canAddRow = costRows.length < (costUi.maxRows ?? 10);
         const canRemoveRow = costRows.length > (costUi.minRows ?? 1);
+        const totalCost = costRows.reduce(
+            (sum, row) => sum + (parseFloat(String(row.quantity).replace(',', '.')) || 0) * (parseFloat(String(row.unitPrice).replace(',', '.')) || 0),
+            0,
+        );
+        const totalCostLabel = totalCost.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         return (
             <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
@@ -399,6 +510,37 @@ export default function TemplateForm({
                         {costUi.addRowLabel}
                     </button>
                 </div>
+
+                <div className="flex flex-col items-end gap-1 mt-1">
+                    <p className="text-sm text-gray-700">
+                        {costUi.totalLabel ?? 'Razem (koszt całkowity)'}: <span className="font-semibold">{totalCostLabel} zł</span>
+                    </p>
+                </div>
+
+                <label className={labelClass}>
+                    <span className={spanTextClass}>
+                        {costUi.requiredAmountLabel ?? 'Kwota wnioskowana (koszt wymagany)'}:
+                        {costUi.requiredAmountHint ? renderHint(costUi.requiredAmountHint) : null}
+                    </span>
+                    <div className="flex-1 flex items-center gap-3">
+                        <input
+                            type="text"
+                            name="koszt_wymagany"
+                            onChange={onChange}
+                            value={kosztWymaganyDisplay ?? ''}
+                            className={inputClass}
+                        />
+                        {kosztWymaganyTouched && (
+                            <button
+                                type="button"
+                                onClick={onResetKosztWymagany}
+                                className="whitespace-nowrap text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                                Przywróć sumę
+                            </button>
+                        )}
+                    </div>
+                </label>
                     </>
                 )}
             </div>
@@ -406,6 +548,95 @@ export default function TemplateForm({
     };
 
     const renderFields = (fields = []) => fields.map(renderField);
+
+    const renderParticipantTable = () => {
+        if (!uczestnicyAvailable || !templateData?.form_uczestnicy) {
+            return null;
+        }
+
+        const canAddRow = participantRows.length < (uczestnicyUi.maxRows ?? 30);
+        const canRemoveRow = participantRows.length > (uczestnicyUi.minRows ?? 1);
+        const filledCount = participantRows.filter((row) => String(row.imieNazwisko ?? '').trim()).length;
+        const columnKeys = ['imie_nazwisko', 'wydzial', 'kierunek', 'rok', 'kontakt'];
+        const rowFieldMap = {
+            imie_nazwisko: 'imieNazwisko',
+            wydzial: 'wydzial',
+            kierunek: 'kierunek',
+            rok: 'rok',
+            kontakt: 'kontakt',
+        };
+
+        return (
+            <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
+                <p className="font-semibold text-gray-700 text-center pt-0 mb-2">
+                    {uczestnicyUi.title}
+                </p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full border border-gray-200 text-sm">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="border border-gray-200 px-2 py-2 text-left">Lp.</th>
+                                {columnKeys.map((key) => (
+                                    <th key={key} className="border border-gray-200 px-2 py-2 text-left">
+                                        <span className="inline-flex items-center gap-1">
+                                            {uczestnicyUi.columns[key]}
+                                            {uczestnicyUi.columnHints[key] ? renderHint(uczestnicyUi.columnHints[key], 'bottom') : null}
+                                        </span>
+                                    </th>
+                                ))}
+                                <th className="border border-gray-200 px-2 py-2 text-left">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {participantRows.map((row, index) => (
+                                <tr key={row.id} className="align-top">
+                                    <td className="border border-gray-200 px-2 py-2 w-12 text-center">{index + 1}</td>
+                                    {columnKeys.map((key) => (
+                                        <td key={key} className="border border-gray-200 px-2 py-2">
+                                            <input
+                                                type="text"
+                                                className="w-full p-2 border border-gray-300 rounded"
+                                                value={row[rowFieldMap[key]]}
+                                                onChange={(e) => onParticipantRowChange(row.id, rowFieldMap[key], e.target.value)}
+                                            />
+                                        </td>
+                                    ))}
+                                    <td className="border border-gray-200 px-2 py-2 w-24">
+                                        <button
+                                            type="button"
+                                            className="text-red-600 disabled:text-gray-400"
+                                            onClick={() => onRemoveParticipantRow(row.id)}
+                                            disabled={!canRemoveRow}
+                                        >
+                                            {uczestnicyUi.removeRowLabel}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onAddParticipantRow}
+                        disabled={!canAddRow}
+                        className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-white font-bold py-2 px-6 rounded shadow"
+                    >
+                        {uczestnicyUi.addRowLabel}
+                    </button>
+                </div>
+
+                <p className="text-sm text-gray-700 text-right">
+                    {uczestnicyUi.countLabel ?? 'Liczba uczestników'}: <span className="font-semibold">{filledCount}</span>
+                    <span className="text-gray-400"> (wiersze z uzupełnionym imieniem i nazwiskiem)</span>
+                </p>
+            </div>
+        );
+    };
+
     const conditionalForms = {
         wydarzenie: templateData?.form_wydarzenie ?? [],
         zakup: templateData?.form_zakup ?? [],
@@ -455,6 +686,8 @@ export default function TemplateForm({
                         </p>
                         {renderFields(conditionalForms[formData.typ_wniosku] ?? [])}
                     </div>
+
+                    {renderParticipantTable()}
 
                     <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
                         <p className="font-semibold text-gray-700 text-center pt-0 mb-2">

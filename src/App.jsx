@@ -9,6 +9,35 @@ import AppFooter from './components/AppFooter.jsx';
 
 const strikeText = (text) => text.split('').join('\u0336') + '\u0336';
 
+// Łączy nazwy/teksty organizatorów w naturalny polski sposób: "A", "A oraz B", "A, B oraz C".
+const joinPolishList = (items, lastSeparator = ' oraz ') => {
+    const filtered = items.filter(Boolean);
+    if (filtered.length === 0) return '';
+    if (filtered.length === 1) return filtered[0];
+    return `${filtered.slice(0, -1).join(', ')}${lastSeparator}${filtered[filtered.length - 1]}`;
+};
+
+// Składa tagi kilku wybranych organizatorów w jeden zestaw tagów dla wniosku wspólnego.
+const combineOrganizerTags = (selectedOptions) => {
+    if (!selectedOptions || selectedOptions.length === 0) {
+        return {
+            organizacja_dopelniacz: '',
+            organizacja_mianownik: '',
+            swss: '',
+            wydzial: undefined,
+        };
+    }
+
+    const anyWydzial = selectedOptions.some((opt) => Boolean(opt.tags?.wydzial));
+
+    return {
+        organizacja_dopelniacz: joinPolishList(selectedOptions.map((opt) => opt.tags?.organizacja_dopelniacz)),
+        organizacja_mianownik: joinPolishList(selectedOptions.map((opt) => opt.tags?.organizacja_mianownik)),
+        swss: selectedOptions.map((opt) => opt.tags?.swss).filter(Boolean).join('/'),
+        wydzial: anyWydzial ? true : undefined,
+    };
+};
+
 const calculateDefaultRozliczenie = (dateStr, rozliczenieRules = {}) => {
     if (!dateStr) return '';
     const baseDate = parseISO(dateStr);
@@ -81,6 +110,34 @@ const createCostRow = (overrides = {}) => ({
 
 const createInitialCostRows = (count = 1) => Array.from({ length: count }, () => createCostRow());
 
+const createParticipantRow = (overrides = {}) => ({
+    id: overrides.id ?? (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    imieNazwisko: overrides.imieNazwisko ?? '',
+    wydzial: overrides.wydzial ?? '',
+    kierunek: overrides.kierunek ?? '',
+    rok: overrides.rok ?? '',
+    kontakt: overrides.kontakt ?? '',
+});
+
+const createInitialParticipantRows = (count = 1) => Array.from({ length: count }, () => createParticipantRow());
+
+const createEmptyParticipantExportRow = () => ({
+    lp: '',
+    imie_nazwisko: '',
+    wydzial: '',
+    kierunek: '',
+    rok: '',
+    kontakt: '',
+});
+
+const padParticipantRows = (rows, minRows = 5) => {
+    const padded = [...rows];
+    while (padded.length < minRows) {
+        padded.push(createEmptyParticipantExportRow());
+    }
+    return padded;
+};
+
 const parseMoneyValue = (value) => {
     if (value === null || value === undefined || value === '') return 0;
     const normalized = String(value).replace(/\s/g, '').replace(',', '.');
@@ -139,7 +196,8 @@ const createInitialFormData = (todayStr, defaultValues = {}) => ({
     rok_preliminarz: String(new Date().getFullYear()),
     zgodny_z_planem: true,
     bezkosztowe: false,
-    liczba_uczestników: '',
+    koszt_wymagany: '',
+    wybor_organizacji: [],
 });
 
 const resolvePublicUrl = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
@@ -159,8 +217,13 @@ function App() {
     const [formData, setFormData] = useState(() => createInitialFormData(todayStr));
     const [complexDates, setComplexDates] = useState({});
     const [costRows, setCostRows] = useState(() => createInitialCostRows());
+    const [participantRows, setParticipantRows] = useState(() => createInitialParticipantRows());
+    const [kosztWymaganyTouched, setKosztWymaganyTouched] = useState(false);
+    const [rozliczenieTouched, setRozliczenieTouched] = useState(false);
     const formUi = templateData?.ui?.form;
     const costUi = templateData?.form_koszty;
+    const uczestnicyUi = templateData?.form_uczestnicy;
+    const uczestnicyAvailable = (uczestnicyUi?.availableFor ?? []).includes(formData.typ_wniosku);
 
     useEffect(() => {
         let isMounted = true;
@@ -230,6 +293,9 @@ function App() {
                     setFormData(createInitialFormData(todayStr, data.ui?.form?.defaultValues));
                     setComplexDates({});
                     setCostRows(createInitialCostRows(data.form_koszty?.minRows ?? 1));
+                    setParticipantRows(createInitialParticipantRows(data.form_uczestnicy?.minRows ?? 1));
+                    setKosztWymaganyTouched(false);
+                    setRozliczenieTouched(false);
                 }
             } catch (error) {
                 if (isMounted) {
@@ -259,7 +325,13 @@ function App() {
         return nextFormData['data_przedsięwzięcia'] ?? null;
     };
 
-    const syncRozliczenie = (nextFormData, nextComplexDates) => {
+    const syncRozliczenie = (nextFormData, nextComplexDates, options = {}) => {
+        const touched = options.rozliczenieTouched ?? rozliczenieTouched;
+        if (touched) {
+            // Użytkownik ręcznie ustawił termin rozliczenia — nie nadpisujemy go automatycznie.
+            return nextFormData;
+        }
+
         const rozliczenieRules = formUi?.rules?.rozliczenie ?? {};
         const baseDateForRozliczenie = resolveRozliczenieBaseDate(nextFormData, nextComplexDates);
 
@@ -275,12 +347,46 @@ function App() {
         };
     };
 
+    const kosztCałkowityNumeric = formData.bezkosztowe
+        ? 0
+        : costRows.reduce((sum, row) => sum + (parseMoneyValue(row.quantity) * parseMoneyValue(row.unitPrice)), 0);
+    // Dopóki użytkownik nie zmieni kwoty ręcznie (patrz handleKosztWymaganyChange w handleChange),
+    // pole "koszt_wymagany" wyświetla i wysyła bieżącą sumę tabeli kosztów — bez zapisu do stanu,
+    // żeby uniknąć efektu wywołującego setState (kaskadowe rendery).
+    const kosztWymaganyDisplay = kosztWymaganyTouched
+        ? (formData.koszt_wymagany ?? '')
+        : formatMoneyValue(kosztCałkowityNumeric);
+
     const handleChange = (e) => {
+        const { name } = e.target;
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+        if (name === 'data_rozliczenia') {
+            // Ręczna edycja terminu rozliczenia — zapamiętujemy to i przestajemy nadpisywać wartość automatem.
+            setRozliczenieTouched(true);
+            setFormData((prev) => ({ ...prev, data_rozliczenia: value }));
+            return;
+        }
+
+        if (name === 'koszt_wymagany') {
+            setKosztWymaganyTouched(true);
+            setFormData((prev) => ({ ...prev, koszt_wymagany: value }));
+            return;
+        }
+
         setFormData((prev) => syncRozliczenie({
             ...prev,
-            [e.target.name]: value,
+            [name]: value,
         }, complexDates));
+    };
+
+    const handleResetRozliczenie = () => {
+        setRozliczenieTouched(false);
+        setFormData((prev) => syncRozliczenie(prev, complexDates, { rozliczenieTouched: false }));
+    };
+
+    const handleResetKosztWymagany = () => {
+        setKosztWymaganyTouched(false);
     };
 
     const handleComplexSelect = (selectedTags) => {
@@ -296,6 +402,35 @@ function App() {
             ...selectedTags,
             opiekun: opiekunValue,
         }, complexDates));
+    };
+
+    // Obsługa pola typu select_complex_multi (np. wyboru kilku organizatorów naraz).
+    // W przeciwieństwie do handleComplexSelect, tu zawsze przeliczamy tagi od nowa
+    // na podstawie PEŁNEJ listy aktualnie zaznaczonych opcji (żeby odznaczenie działało poprawnie).
+    const handleComplexMultiSelect = (fieldId, optionName, isChecked, allOptions) => {
+        setFormData((prev) => {
+            const prevNames = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
+            const nextNames = isChecked
+                ? (prevNames.includes(optionName) ? prevNames : [...prevNames, optionName])
+                : prevNames.filter((name) => name !== optionName);
+
+            const selectedOptions = allOptions.filter((opt) => nextNames.includes(opt.name));
+            const combinedTags = combineOrganizerTags(selectedOptions);
+            const defaultValues = formUi?.defaultValues ?? {};
+            const opiekunValue = combinedTags.wydzial
+                ? (defaultValues.opiekunDlaWydzialu ?? 'Przewodniczący PSS')
+                : (defaultValues.opiekun ?? 'Prorektor ds. Studenckich');
+
+            return syncRozliczenie({
+                ...prev,
+                [fieldId]: nextNames,
+                organizacja_dopelniacz: combinedTags.organizacja_dopelniacz,
+                organizacja_mianownik: combinedTags.organizacja_mianownik,
+                swss: combinedTags.swss,
+                wydzial: combinedTags.wydzial,
+                opiekun: opiekunValue,
+            }, complexDates);
+        });
     };
 
     const handleComplexDateChange = (fieldId, type, value) => {
@@ -361,6 +496,23 @@ function App() {
         });
     };
 
+    const handleParticipantRowChange = (rowId, field, value) => {
+        setParticipantRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)));
+    };
+
+    const handleAddParticipantRow = () => {
+        const maxRows = uczestnicyUi?.maxRows ?? 30;
+        setParticipantRows((prev) => (prev.length >= maxRows ? prev : [...prev, createParticipantRow()]));
+    };
+
+    const handleRemoveParticipantRow = (rowId) => {
+        const minRows = uczestnicyUi?.minRows ?? 1;
+        setParticipantRows((prev) => {
+            if (prev.length <= minRows) return prev;
+            return prev.filter((row) => row.id !== rowId);
+        });
+    };
+
     const isPrzedsięwzięcieTooShort = () => {
         if (!formData.data_wniosku) return false;
 
@@ -376,6 +528,19 @@ function App() {
         return differenceInDays(eventDate, start) < leadTimeDays;
     };
 
+    const isRozliczenieTooSoon = () => {
+        if (!formData.data_rozliczenia) return false;
+
+        const leadTimeDays = formUi?.fieldWarnings?.['data_rozliczenia']?.leadTimeDays ?? 14;
+        const baseDateForRozliczenie = resolveRozliczenieBaseDate(formData, complexDates);
+
+        if (!baseDateForRozliczenie) return false;
+
+        const baseDate = parseISO(baseDateForRozliczenie);
+        const rozliczenieDate = parseISO(formData.data_rozliczenia);
+        return differenceInDays(rozliczenieDate, baseDate) < leadTimeDays;
+    };
+
     const resetTemplateSelection = () => {
         setActiveTemplate(null);
         setTemplateData(null);
@@ -384,11 +549,19 @@ function App() {
         setFormData(createInitialFormData(todayStr, formUi?.defaultValues));
         setComplexDates({});
         setCostRows(createInitialCostRows());
+        setParticipantRows(createInitialParticipantRows());
+        setKosztWymaganyTouched(false);
+        setRozliczenieTouched(false);
     };
 
     const generateDocument = async () => {
         if (!activeTemplate || !templateData) {
             alert(templatesConfig?.ui?.messages?.chooseDocumentFirst ?? 'Najpierw wybierz dokument.');
+            return;
+        }
+
+        if (!Array.isArray(formData.wybor_organizacji) || formData.wybor_organizacji.length === 0) {
+            alert('Wybierz przynajmniej jednego organizatora wniosku.');
             return;
         }
 
@@ -414,13 +587,46 @@ function App() {
                 linebreaks: true,
             });
 
+            // Data wyjazdu/wydarzenia jeszcze w formacie ISO — liczymy to PRZED ogólnym
+            // formatowaniem dat poniżej, żeby nie zależeć od kolejności operacji.
+            const eventRange = extractDateRange(complexDates['data_przedsięwzięcia']);
+            let wyjazdStart = '';
+            let wyjazdEnd = '';
+            if (formData.typ_wniosku === 'wyjazd') {
+                wyjazdStart = eventRange.start ? format(parseISO(eventRange.start), 'dd.MM.yyyy') : '';
+                wyjazdEnd = eventRange.end ? format(parseISO(eventRange.end), 'dd.MM.yyyy') : '';
+            } else if (formData['data_przedsięwzięcia']) {
+                // Dla "wydarzenia" i "zakupu" nie ma zakresu dat — używamy tej samej,
+                // pojedynczej daty jako początku i końca, żeby zdanie w dokumencie miało sens.
+                const singleDate = format(parseISO(formData['data_przedsięwzięcia']), 'dd.MM.yyyy');
+                wyjazdStart = singleDate;
+                wyjazdEnd = singleDate;
+            }
+
             const finalData = { ...formData };
-            if (finalData.data_wniosku) {
-                finalData.data_wniosku = format(parseISO(finalData.data_wniosku), 'dd.MM.yyyy');
-            }
-            if (finalData.data_rozliczenia) {
-                finalData.data_rozliczenia = format(parseISO(finalData.data_rozliczenia), 'dd.MM.yyyy');
-            }
+
+            // Generyczne formatowanie WSZYSTKICH pól typu "date" zadeklarowanych w JSON na dd.mm.rrrr,
+            // zamiast wybiórczego formatowania pojedynczych, zahardkodowanych nazw pól.
+            const activeTypeFields = {
+                wydarzenie: templateData.form_wydarzenie ?? [],
+                zakup: templateData.form_zakup ?? [],
+                wyjazd: templateData.form_wyjazd ?? [],
+            }[formData.typ_wniosku] ?? [];
+
+            const dateFieldIds = [...new Set([
+                ...(templateData.form_wniosek ?? []),
+                ...activeTypeFields,
+                ...(templateData.form_odpowiedzialny ?? []),
+                ...(templateData.end ? [templateData.end] : []),
+            ]
+                .filter((field) => field.type === 'date')
+                .map((field) => field.id))];
+
+            dateFieldIds.forEach((fieldId) => {
+                if (finalData[fieldId]) {
+                    finalData[fieldId] = format(parseISO(finalData[fieldId]), 'dd.MM.yyyy');
+                }
+            });
 
             const renderedCostRows = formData.bezkosztowe
                 ? padCostRows([], 5)
@@ -434,13 +640,30 @@ function App() {
                 })), 5);
 
             finalData.koszty = renderedCostRows;
-            finalData.koszt_całkowity = formData.bezkosztowe
+            finalData.koszt_całkowity = formatMoneyValue(kosztCałkowityNumeric);
+            finalData.koszt_wymagany = formData.bezkosztowe
                 ? '0,00'
-                : formatMoneyValue(
-                    renderedCostRows.reduce((sum, row) => sum + (parseMoneyValue(row.quantity) * parseMoneyValue(row.unitPrice)), 0),
-                );
+                : formatMoneyValue(kosztWymaganyTouched ? parseMoneyValue(formData.koszt_wymagany) : kosztCałkowityNumeric);
 
-            const eventRange = extractDateRange(complexDates['data_przedsięwzięcia']);
+            if (uczestnicyAvailable) {
+                const filledParticipants = participantRows.filter((row) => String(row.imieNazwisko ?? '').trim());
+                finalData.uczestnicy = padParticipantRows(
+                    filledParticipants.map((row, index) => ({
+                        lp: index + 1,
+                        imie_nazwisko: row.imieNazwisko,
+                        wydzial: row.wydzial,
+                        kierunek: row.kierunek,
+                        rok: row.rok,
+                        kontakt: row.kontakt,
+                    })),
+                    5,
+                );
+                finalData.liczba_uczestników = String(filledParticipants.length);
+            } else {
+                finalData.uczestnicy = padParticipantRows([], 5);
+                finalData.liczba_uczestników = '';
+            }
+
             finalData.dzien_tekst = `${strikeText('dniu')}/dniach`;
             finalData.dzienTekst = finalData.dzien_tekst;
             if (calculateDays(eventRange.start, eventRange.end) <= 1) {
@@ -463,11 +686,9 @@ function App() {
                 : `${strikeText('TAK')}/NIE`;
             finalData.preliminarzTekst = finalData.preliminarz_tekst;
 
-            const startDate = eventRange.start ? format(parseISO(eventRange.start), 'dd.MM.yyyy') : '';
-            const endDate = eventRange.end ? format(parseISO(eventRange.end), 'dd.MM.yyyy') : '';
-            finalData.data_wyjazdu_start = formData.typ_wniosku === 'wyjazd' ? startDate : '';
-            finalData['data_wyjazdu_powrót'] = formData.typ_wniosku === 'wyjazd' ? endDate : '';
-            finalData.data_wyjazdu_powrot = finalData['data_wyjazdu_powrót'];
+            finalData.data_wyjazdu_start = wyjazdStart;
+            finalData['data_wyjazdu_powrót'] = wyjazdEnd;
+            finalData.data_wyjazdu_powrot = wyjazdEnd;
 
             doc.render({
                 ...(templateData.static_tags ?? {}),
@@ -497,14 +718,27 @@ function App() {
                     ui={formUi}
                     formData={formData}
                     costRows={costRows}
+                    participantRows={participantRows}
+                    uczestnicyUi={uczestnicyUi}
+                    uczestnicyAvailable={uczestnicyAvailable}
                     complexDates={complexDates}
                     onChange={handleChange}
                     onCostRowChange={handleCostRowChange}
                     onAddCostRow={handleAddCostRow}
                     onRemoveCostRow={handleRemoveCostRow}
+                    onParticipantRowChange={handleParticipantRowChange}
+                    onAddParticipantRow={handleAddParticipantRow}
+                    onRemoveParticipantRow={handleRemoveParticipantRow}
                     onComplexDateChange={handleComplexDateChange}
                     onComplexSelect={handleComplexSelect}
+                    onComplexMultiSelect={handleComplexMultiSelect}
                     isPrzedsięwzięcieTooShort={isPrzedsięwzięcieTooShort}
+                    isRozliczenieTooSoon={isRozliczenieTooSoon}
+                    rozliczenieTouched={rozliczenieTouched}
+                    onResetRozliczenie={handleResetRozliczenie}
+                    kosztWymaganyTouched={kosztWymaganyTouched}
+                    kosztWymaganyDisplay={kosztWymaganyDisplay}
+                    onResetKosztWymagany={handleResetKosztWymagany}
                     onGenerateDocument={generateDocument}
                     onResetTemplateSelection={resetTemplateSelection}
                     loading={templateLoading}
