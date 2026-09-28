@@ -1,10 +1,20 @@
 {
   "defaultTemplateId": "dofinansowanie",
   "dev": {
-    "version": "0.4",
-    "date": "28.07.2026",
+    "version": "0.5",
+    "date": "28.09.2026",
     "author": "Mateusz Parciak",
     "link": "https://www.instagram.com/ten_mefo/"
+  },
+  "ui": {
+    "templatePicker": {
+      "title": "Wybierz dokument",
+      "loading": "Ładowanie listy dokumentów...",
+      "continueButton": "Przejdź do formularza"
+    },
+    "messages": {
+      "chooseDocumentFirst": "Najpierw wybierz dokument."
+    }
   },
   "templates": [
     {

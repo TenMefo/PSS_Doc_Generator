@@ -9,8 +9,8 @@
     {
       "id": "wybor_organizacji",
       "label": "Organizator",
-      "type": "select_complex",
-      "hint": "Kto jest odpowiedzialny złożenie wniosku i organizację przedsięwzięcia. Wybierz swój wydział.",
+      "type": "select_complex_multi",
+      "hint": "Kto jest odpowiedzialny za złożenie wniosku i organizację przedsięwzięcia. Możesz zaznaczyć więcej niż jednego organizatora (np. wspólny wyjazd dwóch wydziałów) — we wniosku zostaną wtedy wymienieni razem.",
       "options": [
         {
           "name": "Parlament Samorządu Studenckiego",
@@ -120,6 +120,18 @@
           }
         }
       ]
+    },
+    {
+      "id": "rok_preliminarz",
+      "label": "Rok preliminarza",
+      "type": "number",
+      "placeholder": "Wpisz..."
+    },
+    {
+      "id": "zgodny_z_planem",
+      "label": "Preliminarz zgodny z planem",
+      "type": "checkbox",
+      "hint": "Zaznacz, jeśli w dokumencie ma zostać TAK."
     }
   ],
   "form_wydarzenie": [
@@ -164,6 +176,20 @@
       "label": "Data przedsięwzięcia",
       "type": "date",
       "hint": "Pamiętaj, że wniosek musi trafić NAJPÓŹNIEJ 14 dni przed przedsięwwzięciem. Weź pod uwagę inne czynniki jak dodatkowe zgody itd. Wniosek powinien być ostatnim punktem całej organizacji."
+    },
+    {
+      "id": "opis_oraz_cel",
+      "label": "Opis i cel",
+      "type": "textarea",
+      "placeholder": "Celem zakupu jest...",
+      "hint": "Opis i cel zakupu, np. do czego posłuży i komu, dlaczego jest potrzebny."
+    },
+    {
+      "id": "miejsce_oraz_adres",
+      "label": "Miejsce realizacji",
+      "type": "text",
+      "placeholder": "Wpisz...",
+      "hint": "Miejsce, w którym zakup zostanie zrealizowany/wykorzystany (np. siedziba organizacji, adres wydziału)."
     }
   ],
   "form_wyjazd": [
@@ -173,6 +199,13 @@
       "type": "text",
       "placeholder": "Wpisz...",
       "hint": "Nazwa wyjazdu lub delegacji."
+    },
+    {
+      "id": "opis_oraz_cel",
+      "label": "Opis i cel",
+      "type": "textarea",
+      "placeholder": "Celem wyjazdu jest...",
+      "hint": "Opis i cel wyjazdu, np. w jakim wydarzeniu uczestnicy wezmą udział i po co."
     },
     {
       "id": "data_przedsięwzięcia",
@@ -195,7 +228,60 @@
       "hint": "Nazwa miejsca oraz dokładny adres (maisto też) np. \"CKS Pinokio, ul. Sikorskiego 29, 71-072 Szczecin\""
     }
   ],
-
+  "form_koszty": {
+    "title": "Tabela kosztów",
+    "minRows": 1,
+    "maxRows": 10,
+    "defaultQuantity": "1",
+    "addRowLabel": "Dodaj pozycję",
+    "removeRowLabel": "Usuń",
+    "columns": {
+      "description": "Wyszczególnienie kosztów",
+      "quantity": "Ilość",
+      "unitPrice": "Cena jednostkowa",
+      "source": "Źródło finansowania"
+    },
+    "columnHints": {
+      "description": "Krótki opis pozycji kosztowej.",
+      "quantity": "Wpisz liczbę sztuk; domyślnie 1.",
+      "unitPrice": "Cena jednej sztuki lub usługi.",
+      "source": "Wybierz dostępne źródło lub wpisz własne."
+    },
+    "sourceOptions": [
+      "Dofinansowanie PSS",
+      "Środki własne",
+      "Wpłaty uczestników",
+      "Inne",
+      "Wpisz własne"
+    ],
+    "customSourcePlaceholder": "Wpisz własne źródło finansowania",
+    "totalLabel": "Razem (koszt całkowity)",
+    "requiredAmountLabel": "Kwota wnioskowana (koszt wymagany)",
+    "requiredAmountHint": "Domyślnie suma wszystkich pozycji kosztowych powyżej. Zmniejsz ręcznie, jeśli część kosztów pokrywana jest z innych źródeł niezależnie od tego wniosku."
+  },
+  "form_uczestnicy": {
+    "title": "Lista uczestników",
+    "availableFor": ["wydarzenie", "wyjazd"],
+    "minRows": 1,
+    "maxRows": 30,
+    "addRowLabel": "Dodaj uczestnika",
+    "removeRowLabel": "Usuń",
+    "countLabel": "Liczba uczestników",
+    "columns": {
+      "imie_nazwisko": "Nazwisko i imię",
+      "wydzial": "Wydział",
+      "kierunek": "Kierunek",
+      "rok": "Rok",
+      "kontakt": "Dane kontaktowe"
+    },
+    "columnHints": {
+      "imie_nazwisko": "Imię i nazwisko uczestnika.",
+      "wydzial": "Wydział, na którym studiuje uczestnik.",
+      "kierunek": "Kierunek studiów uczestnika.",
+      "rok": "Rok studiów.",
+      "kontakt": "Telefon lub adres e-mail uczestnika."
+    }
+  },
   "form_odpowiedzialny": [
     {
       "id": "odpowiedzialny_imie",
@@ -233,5 +319,54 @@
   },
   "static_tags": {
     "opiekun": "Przewodniczący PSS"
+  },
+  "ui": {
+    "form": {
+      "documentLabel": "Dokument",
+      "changeDocument": "Zmień dokument",
+      "typeLabel": "Typ przedsięwzięcia",
+      "typeOptions": [
+        {
+          "value": "wydarzenie",
+          "label": "Wydarzenie"
+        },
+        {
+          "value": "zakup",
+          "label": "Zakup"
+        },
+        {
+          "value": "wyjazd",
+          "label": "Wyjazd"
+        }
+      ],
+      "sectionTitles": {
+        "details": "Szczegóły przedsięwzięcia",
+        "responsible": "Dane osobowe osoby odpowiedzialnej za rozliczanie wydarzenia"
+      },
+      "fieldWarnings": {
+        "data_przedsięwzięcia": {
+          "message": "⚠️ Uwaga: Wniosek należy złożyć przynajmniej 14 dni przed przedsięwzięciem!",
+          "leadTimeDays": 14
+        },
+        "data_rozliczenia": {
+          "message": "⚠️ Uwaga: termin rozliczenia jest krótszy niż wymagane 14 dni od przedsięwzięcia!",
+          "leadTimeDays": 14
+        }
+      },
+      "defaultValues": {
+        "opiekun": "opieukna",
+        "opiekunDlaWydzialu": "Przewodniczący PSS"
+      },
+      "rules": {
+        "rozliczenie": {
+          "baseDays": 14,
+          "targetDayAdjustments": {
+            "0": 1,
+            "3": 1,
+            "6": 2
+          }
+        }
+      }
+    }
   }
 }
