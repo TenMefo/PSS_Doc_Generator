@@ -248,11 +248,22 @@
       "source": "Wybierz dostępne źródło lub wpisz własne."
     },
     "sourceOptions": [
-      "Dofinansowanie PSS",
-      "Środki własne",
-      "Wpłaty uczestników",
-      "Inne",
-      "Wpisz własne"
+      {
+        "label": "Środki PSS",
+        "value": "WYDZIELONE ŚRODKI NA DZIAŁALNOŚĆ NAUKOWĄ, WYCHOWAWCZĄ, KULTURALNĄ I SPORTOWO-REKREACYJNĄ STUDENTÓW POZ. SAMORZĄD STUDENCKI"
+      },
+      {
+        "label": "Nagroda za ankietyzację",
+        "value": "Nagroda za ankietyzację"
+      },
+      {
+        "label": "Zbiórka koleżeńska",
+        "value": "Zbiórka koleżeńska"
+      },
+      {
+        "label": "Inne (do wpisania)",
+        "value": "__custom__"
+      }
     ],
     "customSourcePlaceholder": "Wpisz własne źródło finansowania",
     "totalLabel": "Razem (koszt całkowity)",
