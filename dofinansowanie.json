@@ -242,7 +242,7 @@
       "source": "Źródło finansowania"
     },
     "columnHints": {
-      "description": "Krótki opis pozycji kosztowej.",
+      "description": "Krótki opis pozycji kosztowej, pozwalający zidentyfikować ją w fakturze lub rachunku.",
       "quantity": "Wpisz liczbę sztuk; domyślnie 1.",
       "unitPrice": "Cena jednej sztuki lub usługi.",
       "source": "Wybierz dostępne źródło lub wpisz własne."
@@ -318,15 +318,14 @@
       "type": "select",
       "options": [
         "Przewodniczący",
-        "Wiceprzewodniczący",
-        "Członek"]
+        "Wiceprzewodniczący"]
     }
   ],
   "end": {
     "id": "data_rozliczenia",
     "label": "Data rozliczenia",
     "type": "date",
-    "hint": "Data rozliczenia wniosku, NAJMNIEJ 14 od daty wydarzenia. W tym czasie należy zanieść wniosek do rektoratu, ale weź pod uwagę, że uczelnia musi zdążyć go rozliczyć"
+    "hint": "Data rozliczenia wniosku, NAJMNIEJ 14 od daty wydarzenia. W tym czasie należy zanieść faktury do rektoratu, ale weź pod uwagę, że uczelnia musi zdążyć go rozliczyć"
   },
   "static_tags": {
     "opiekun": "Przewodniczący PSS"
@@ -352,7 +351,10 @@
       ],
       "sectionTitles": {
         "details": "Szczegóły przedsięwzięcia",
-        "responsible": "Dane osobowe osoby odpowiedzialnej za rozliczanie wydarzenia"
+        "responsible": "Dane osobowe do rozliczeń",
+        "general": "Informacje ogólne",
+        "costs": "Tabela kosztów",
+        "participants": "Lista uczestników"
       },
       "fieldWarnings": {
         "data_przedsięwzięcia": {
