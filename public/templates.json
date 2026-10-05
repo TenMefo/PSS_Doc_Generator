@@ -1,8 +1,8 @@
 {
   "defaultTemplateId": "dofinansowanie",
   "dev": {
-    "version": "0.6",
-    "date": "28.09.2026",
+    "version": "1.0",
+    "date": "05.10.2026",
     "author": "Mateusz Parciak",
     "link": "https://www.instagram.com/ten_mefo/"
   },
@@ -20,16 +20,9 @@
     {
       "id": "dofinansowanie",
       "label": "Wniosek o dofinansowanie",
-      "description": "Wniosek o dofinansowanie składany w rektoracie ZUT w Szczecinie w momencie ubiegania się o finansowanie przedsięwzięcia przez organizacje studencką. Wniosek musi być złożony w formie papierowej w terminie co najmniej 14 dni przezd przedsięwzięciem. ",
+      "description": "Wniosek o dofinansowanie składany w rektoracie ZUT w Szczecinie w momencie ubiegania się o finansowanie przedsięwzięcia przez organizacje studencką. Wniosek musi być złożony w formie papierowej w terminie co najmniej 14 dni przed przedsięwzięciem. ",
       "jsonUrl": "dofinansowanie.json",
       "docxUrl": "dofinansowanie.docx"
-    },
-    {
-      "id": "wydarzenie",
-      "label": "Wydarzenie",
-      "description": "Drugi szablon formularza - TESTOWY",
-      "jsonUrl": "wydarzenie.json",
-      "docxUrl": "wydarzenie.docx"
     }
   ]
 }

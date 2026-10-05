@@ -38,6 +38,215 @@ const combineOrganizerTags = (selectedOptions) => {
     };
 };
 
+const emptyUndefinedValues = (value) => {
+    if (Array.isArray(value)) return value.map(emptyUndefinedValues);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, emptyUndefinedValues(item)]));
+    }
+    return value === undefined || value === null || value === 'undefined' ? '' : value;
+};
+
+const formatFunkcjaDopelniacz = (funkcja = 'Przewodniczący') => {
+    if (!funkcja) return 'Przewodniczącego';
+    const lower = String(funkcja).trim().toLowerCase();
+    if (lower === 'przewodniczący' || lower === 'przewodniczacy') return 'Przewodniczącego';
+    if (lower === 'wiceprzewodniczący' || lower === 'wiceprzewodniczacy') return 'Wiceprzewodniczącego';
+    if (lower.endsWith('y')) return `${funkcja.slice(0, -1)}ego`;
+    return funkcja;
+};
+
+const getOrganizerChairmen = (templateData, selectedOrganizerNames) => {
+    const organizerField = (templateData?.form_wniosek ?? []).find((field) => field.id === 'wybor_organizacji');
+    const allOptions = organizerField?.options ?? [];
+    const selectedOptions = allOptions.filter((opt) => selectedOrganizerNames.includes(opt.name));
+
+    if (selectedOptions.length === 0) {
+        return ['Przewodniczącego'];
+    }
+
+    return selectedOptions.map((opt) => {
+        const swss = opt.tags?.swss;
+        if (swss) {
+            return `Przewodniczącego ${swss}`;
+        }
+        return `Przewodniczącego ${opt.name}`;
+    });
+};
+
+const expandMultipleOrganizerSignatures = (documentXml, chairmen) => {
+    if (!Array.isArray(chairmen) || chairmen.length <= 1) {
+        return documentXml;
+    }
+
+    const parser = new DOMParser();
+    const document = parser.parseFromString(documentXml, 'application/xml');
+    const wordNamespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const paragraphs = [...document.getElementsByTagNameNS(wordNamespace, 'p')];
+
+    const firstChairman = chairmen[0];
+    const sigParagraphs = paragraphs.filter((p) => p.textContent.includes(firstChairman));
+
+    if (sigParagraphs.length === 0) {
+        return documentXml;
+    }
+
+    sigParagraphs.forEach((sigP) => {
+        let dotsP = sigP.previousSibling;
+        while (dotsP && dotsP.nodeType !== 1) {
+            dotsP = dotsP.previousSibling;
+        }
+
+        let insertAnchor = sigP;
+
+        for (let i = 1; i < chairmen.length; i += 1) {
+            const chairmanName = chairmen[i];
+
+            let newDotsP = null;
+            if (dotsP) {
+                newDotsP = dotsP.cloneNode(true);
+                const pPrTabs = newDotsP.getElementsByTagNameNS(wordNamespace, 'tabs')[0];
+                if (pPrTabs) {
+                    const tabDefs = [...pPrTabs.getElementsByTagNameNS(wordNamespace, 'tab')];
+                    tabDefs.forEach((t) => {
+                        const pos = parseInt(t.getAttributeNS(wordNamespace, 'pos') || t.getAttribute('w:pos') || '0', 10);
+                        if (pos > 4500) {
+                            pPrTabs.removeChild(t);
+                        }
+                    });
+                }
+                const rNodes = [...newDotsP.getElementsByTagNameNS(wordNamespace, 'r')];
+                rNodes.forEach((r) => {
+                    const childTabs = [...r.getElementsByTagNameNS(wordNamespace, 'tab')];
+                    if (childTabs.length > 1) {
+                        for (let tIdx = 1; tIdx < childTabs.length; tIdx += 1) {
+                            r.removeChild(childTabs[tIdx]);
+                        }
+                    }
+                    const tNodes = [...r.getElementsByTagNameNS(wordNamespace, 't')];
+                    if (tNodes.length > 1 && tNodes[0].textContent.includes('…') && tNodes[1].textContent.includes('…')) {
+                        r.removeChild(tNodes[1]);
+                    }
+                });
+            }
+
+            const newSigP = sigP.cloneNode(true);
+            const sigRuns = [...newSigP.getElementsByTagNameNS(wordNamespace, 'r')];
+            let pastChairmanRun = false;
+            sigRuns.forEach((r) => {
+                if (pastChairmanRun) {
+                    newSigP.removeChild(r);
+                } else if (r.textContent.includes(firstChairman)) {
+                    pastChairmanRun = true;
+                }
+            });
+
+            const textNodes = newSigP.getElementsByTagNameNS(wordNamespace, 't');
+            for (const t of textNodes) {
+                if (t.textContent.includes(firstChairman)) {
+                    t.textContent = t.textContent.replace(firstChairman, chairmanName);
+                }
+            }
+
+            if (newDotsP) {
+                sigP.parentNode.insertBefore(newDotsP, insertAnchor.nextSibling);
+                sigP.parentNode.insertBefore(newSigP, newDotsP.nextSibling);
+                insertAnchor = newSigP;
+            } else {
+                sigP.parentNode.insertBefore(newSigP, insertAnchor.nextSibling);
+                insertAnchor = newSigP;
+            }
+        }
+    });
+
+    return new XMLSerializer().serializeToString(document);
+};
+
+const replaceTextInParagraph = (p, target, replacement, wordNamespace) => {
+    const textNodes = [...p.getElementsByTagNameNS(wordNamespace, 't')];
+    for (const t of textNodes) {
+        if (t.textContent.includes(target)) {
+            t.textContent = t.textContent.replace(target, replacement);
+            return true;
+        }
+    }
+    const fullText = textNodes.map((t) => t.textContent).join('');
+    if (fullText.includes(target)) {
+        const newFullText = fullText.replace(target, replacement);
+        if (textNodes.length > 0) {
+            textNodes[0].textContent = newFullText;
+            for (let i = 1; i < textNodes.length; i += 1) {
+                textNodes[i].textContent = '';
+            }
+            return true;
+        }
+    }
+    return false;
+};
+
+const getFacultyGenitiveName = (option) => {
+    if (!option) return '';
+    const dopelniacz = option.tags?.organizacja_dopelniacz || '';
+    const stripped = dopelniacz.replace(/^Sejmiku\s+Wydziałowego\s+Samorządu\s+Studenckiego\s+/i, '').trim();
+    if (stripped) return stripped;
+    const wydzial = option.tags?.wydzial || option.name || '';
+    if (wydzial.startsWith('Wydział ')) return wydzial.replace(/^Wydział\s+/, 'Wydziału ');
+    return wydzial;
+};
+
+const expandMultipleFacultyDeanBlocks = (documentXml, facultyOptions) => {
+    if (!Array.isArray(facultyOptions) || facultyOptions.length === 0) {
+        return documentXml;
+    }
+
+    const parser = new DOMParser();
+    const document = parser.parseFromString(documentXml, 'application/xml');
+    const wordNamespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const paragraphs = [...document.getElementsByTagNameNS(wordNamespace, 'p')];
+
+    const deanStartIndex = paragraphs.findIndex((p) => p.textContent.includes('Zapoznałem się i akceptuję wniosek'));
+    if (deanStartIndex === -1) {
+        return documentXml;
+    }
+
+    let deanEndIndex = paragraphs.findIndex(
+        (p, idx) => idx >= deanStartIndex && p.textContent.includes('upoważnionego prodziekana'),
+    );
+    if (deanEndIndex === -1) {
+        deanEndIndex = deanStartIndex + 4;
+    }
+
+    const deanTemplatePs = paragraphs.slice(deanStartIndex, deanEndIndex + 1);
+    const firstFacultyName = getFacultyGenitiveName(facultyOptions[0]);
+
+    if (firstFacultyName) {
+        const firstDeanSigP = deanTemplatePs.find((p) => p.textContent.includes('dziekana')) || deanTemplatePs[3];
+        if (firstDeanSigP) {
+            replaceTextInParagraph(firstDeanSigP, 'dziekana wydziału', `dziekana ${firstFacultyName}`, wordNamespace);
+        }
+    }
+
+    let insertAnchor = deanTemplatePs[deanTemplatePs.length - 1];
+
+    for (let i = 1; i < facultyOptions.length; i += 1) {
+        const facultyName = getFacultyGenitiveName(facultyOptions[i]);
+        const clonedPs = deanTemplatePs.map((p) => p.cloneNode(true));
+
+        const clonedDeanSigP = clonedPs.find((p) => p.textContent.includes('dziekana')) || clonedPs[3];
+        if (clonedDeanSigP) {
+            if (!replaceTextInParagraph(clonedDeanSigP, `dziekana ${firstFacultyName}`, `dziekana ${facultyName}`, wordNamespace)) {
+                replaceTextInParagraph(clonedDeanSigP, 'dziekana wydziału', `dziekana ${facultyName}`, wordNamespace);
+            }
+        }
+
+        clonedPs.forEach((newP) => {
+            insertAnchor.parentNode.insertBefore(newP, insertAnchor.nextSibling);
+            insertAnchor = newP;
+        });
+    }
+
+    return new XMLSerializer().serializeToString(document);
+};
+
 const PSS_FUNDS_VALUE = 'WYDZIELONE ŚRODKI NA DZIAŁALNOŚĆ NAUKOWĄ, WYCHOWAWCZĄ, KULTURALNĄ I SPORTOWO-REKREACYJNĄ STUDENTÓW POZ. SAMORZĄD STUDENCKI';
 
 const getFinancingSourceOptions = (templateData, selectedOrganizerNames) => {
@@ -47,7 +256,7 @@ const getFinancingSourceOptions = (templateData, selectedOrganizerNames) => {
     const deanSources = selectedOrganizers
         .filter((option) => option.tags?.wydzial)
         .map((option) => ({
-            label: `Środki w dyspozycji dziekana ${(option.tags.swss ?? '').replace(/^SWSS\s+/, '')}`,
+            label: `Środki dziekana ${(option.tags.swss ?? '').replace(/^SWSS\s+/, '')}`,
             value: `Środki w dyspozycji dziekana ${(option.tags.swss ?? '').replace(/^SWSS\s+/, '')}`,
         }));
 
@@ -306,6 +515,7 @@ function App() {
     const [participantRows, setParticipantRows] = useState(() => createInitialParticipantRows());
     const [kosztWymaganyTouched, setKosztWymaganyTouched] = useState(false);
     const [rozliczenieTouched, setRozliczenieTouched] = useState(false);
+    const [organizerMode, setOrganizerMode] = useState('single');
     const formUi = templateData?.ui?.form;
     const costUi = templateData?.form_koszty;
     const uczestnicyUi = templateData?.form_uczestnicy;
@@ -383,6 +593,7 @@ function App() {
                     setParticipantRows(createInitialParticipantRows(data.form_uczestnicy?.minRows ?? 1));
                     setKosztWymaganyTouched(false);
                     setRozliczenieTouched(false);
+                    setOrganizerMode('single');
                 }
             } catch (error) {
                 if (isMounted) {
@@ -491,6 +702,37 @@ function App() {
         }, complexDates));
     };
 
+    const handleOrganizerSingleSelect = (field, optionName) => {
+        const selectedOption = (field.options ?? []).find((option) => option.name === optionName);
+        if (!selectedOption) return;
+
+        const tags = combineOrganizerTags([selectedOption]);
+        const defaultValues = formUi?.defaultValues ?? {};
+        const validSourceValues = new Set(getFinancingSourceOptions(templateData, [optionName]).map((option) => option.value));
+        setCostRows((rows) => rows.map((row) => (
+            row.sourceType === 'option' && row.source && !validSourceValues.has(row.source)
+                ? { ...row, source: '' }
+                : row
+        )));
+        setFormData((prev) => syncRozliczenie({
+            ...prev,
+            wybor_organizacji: optionName ? [optionName] : [],
+            ...tags,
+            opiekun: tags.wydzial
+                ? (defaultValues.opiekunDlaWydzialu ?? 'Przewodniczący PSS')
+                : (defaultValues.opiekun ?? 'Prorektor ds. Studenckich'),
+        }, complexDates));
+    };
+
+    const handleOrganizerModeChange = (nextMode) => {
+        setOrganizerMode(nextMode);
+        if (nextMode === 'single' && formData.wybor_organizacji.length > 1) {
+            const firstName = formData.wybor_organizacji[0];
+            const organizerField = (templateData?.form_wniosek ?? []).find((field) => field.id === 'wybor_organizacji');
+            handleOrganizerSingleSelect(organizerField, firstName);
+        }
+    };
+
     // Obsługa pola typu select_complex_multi (np. wyboru kilku organizatorów naraz).
     // W przeciwieństwie do handleComplexSelect, tu zawsze przeliczamy tagi od nowa
     // na podstawie PEŁNEJ listy aktualnie zaznaczonych opcji (żeby odznaczenie działało poprawnie).
@@ -540,7 +782,10 @@ function App() {
                     [fieldId]: formatted,
                 }, updated));
             } else {
-                setFormData((current) => syncRozliczenie(current, updated));
+                setFormData((current) => syncRozliczenie({
+                    ...current,
+                    [fieldId]: '',
+                }, updated));
             }
 
             return updated;
@@ -645,6 +890,7 @@ function App() {
         setParticipantRows(createInitialParticipantRows());
         setKosztWymaganyTouched(false);
         setRozliczenieTouched(false);
+        setOrganizerMode('single');
     };
 
     const generateDocument = async () => {
@@ -678,6 +924,7 @@ function App() {
             const doc = new Docxtemplater(zip, {
                 paragraphLoop: true,
                 linebreaks: true,
+                nullGetter: () => '',
             });
 
             // Data wyjazdu/wydarzenia jeszcze w formacie ISO — liczymy to PRZED ogólnym
@@ -686,17 +933,42 @@ function App() {
             let wyjazdStart = '';
             let wyjazdEnd = '';
             if (formData.typ_wniosku === 'wyjazd') {
-                wyjazdStart = eventRange.start ? format(parseISO(eventRange.start), 'dd.MM.yyyy') : '';
-                wyjazdEnd = eventRange.end ? format(parseISO(eventRange.end), 'dd.MM.yyyy') : '';
+                try {
+                    wyjazdStart = eventRange.start ? format(parseISO(eventRange.start), 'dd.MM.yyyy') : '';
+                    wyjazdEnd = eventRange.end ? format(parseISO(eventRange.end), 'dd.MM.yyyy') : '';
+                } catch {
+                    wyjazdStart = '';
+                    wyjazdEnd = '';
+                }
             } else if (formData['data_przedsięwzięcia']) {
                 // Dla "wydarzenia" i "zakupu" nie ma zakresu dat — używamy tej samej,
                 // pojedynczej daty jako początku i końca, żeby zdanie w dokumencie miało sens.
-                const singleDate = format(parseISO(formData['data_przedsięwzięcia']), 'dd.MM.yyyy');
-                wyjazdStart = singleDate;
-                wyjazdEnd = singleDate;
+                try {
+                    const singleDate = format(parseISO(formData['data_przedsięwzięcia']), 'dd.MM.yyyy');
+                    wyjazdStart = singleDate;
+                    wyjazdEnd = singleDate;
+                } catch {
+                    wyjazdStart = '';
+                    wyjazdEnd = '';
+                }
             }
 
             const finalData = { ...formData };
+
+            // Upewniamy się, że żadne pole formularza zadeklarowane w JSON nie trafi jako undefined/null
+            const allFormFields = [
+                ...(templateData.form_wniosek ?? []),
+                ...(templateData.form_wydarzenie ?? []),
+                ...(templateData.form_zakup ?? []),
+                ...(templateData.form_wyjazd ?? []),
+                ...(templateData.form_odpowiedzialny ?? []),
+                ...(templateData.end ? [templateData.end] : []),
+            ];
+            allFormFields.forEach((field) => {
+                if (field?.id && (finalData[field.id] === undefined || finalData[field.id] === null)) {
+                    finalData[field.id] = '';
+                }
+            });
 
             // Generyczne formatowanie WSZYSTKICH pól typu "date" zadeklarowanych w JSON na dd.mm.rrrr,
             // zamiast wybiórczego formatowania pojedynczych, zahardkodowanych nazw pól.
@@ -717,7 +989,13 @@ function App() {
 
             dateFieldIds.forEach((fieldId) => {
                 if (finalData[fieldId]) {
-                    finalData[fieldId] = format(parseISO(finalData[fieldId]), 'dd.MM.yyyy');
+                    try {
+                        finalData[fieldId] = format(parseISO(finalData[fieldId]), 'dd.MM.yyyy');
+                    } catch {
+                        finalData[fieldId] = '';
+                    }
+                } else {
+                    finalData[fieldId] = '';
                 }
             });
 
@@ -789,21 +1067,41 @@ function App() {
             finalData['data_wyjazdu_powrót'] = wyjazdEnd;
             finalData.data_wyjazdu_powrot = wyjazdEnd;
 
-            if (Array.isArray(formData.wybor_organizacji) && formData.wybor_organizacji.length > 1) {
-                finalData.odpowiedzialny_funkcja = 'przewodniczącego';
+            const selectedOrganizerNames = Array.isArray(formData.wybor_organizacji)
+                ? formData.wybor_organizacji
+                : (formData.wybor_organizacji ? [formData.wybor_organizacji] : []);
+
+            const chairmen = selectedOrganizerNames.length > 1
+                ? getOrganizerChairmen(templateData, selectedOrganizerNames)
+                : [];
+
+            if (chairmen.length > 1) {
+                finalData.odpowiedzialny_funkcja = chairmen[0];
                 finalData.swss = '';
+            } else {
+                finalData.odpowiedzialny_funkcja = formatFunkcjaDopelniacz(formData.odpowiedzialny_funkcja || 'Przewodniczący');
             }
 
-            doc.render({
+            const organizerField = (templateData?.form_wniosek ?? []).find((field) => field.id === 'wybor_organizacji');
+            const allOrganizerOptions = organizerField?.options ?? [];
+            const facultyOptions = allOrganizerOptions.filter(
+                (opt) => selectedOrganizerNames.includes(opt.name) && Boolean(opt.tags?.wydzial),
+            );
+
+            doc.render(emptyUndefinedValues({
                 ...(templateData.static_tags ?? {}),
                 ...finalData,
-            });
+            }));
 
-            const mergedDocumentXml = mergeCostSourceCells(
-                doc.getZip().file('word/document.xml').asText(),
-                renderedCostRows,
-            );
-            doc.getZip().file('word/document.xml', mergedDocumentXml);
+            let documentXml = doc.getZip().file('word/document.xml').asText();
+            documentXml = mergeCostSourceCells(documentXml, renderedCostRows);
+            if (chairmen.length > 1) {
+                documentXml = expandMultipleOrganizerSignatures(documentXml, chairmen);
+            }
+            if (facultyOptions.length > 1 || (facultyOptions.length === 1 && selectedOrganizerNames.length > 1)) {
+                documentXml = expandMultipleFacultyDeanBlocks(documentXml, facultyOptions);
+            }
+            doc.getZip().file('word/document.xml', documentXml);
 
             const blob = doc.getZip().generate({
                 type: 'blob',
@@ -818,11 +1116,12 @@ function App() {
     };
 
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <p className="font-bold tracking-normal text-blue-900 text-4xl pb-5">e-Parlament</p>
+        <div className="app-shell">
+            <header className="app-header">e-Parlament</header>
 
             {activeTemplate ? (
                 <TemplateForm
+                    key={activeTemplate.id}
                     activeTemplate={activeTemplate}
                     templateData={templateData}
                     ui={formUi}
@@ -842,6 +1141,9 @@ function App() {
                     onRemoveParticipantRow={handleRemoveParticipantRow}
                     onComplexDateChange={handleComplexDateChange}
                     onComplexSelect={handleComplexSelect}
+                    onOrganizerSingleSelect={handleOrganizerSingleSelect}
+                    organizerMode={organizerMode}
+                    onOrganizerModeChange={handleOrganizerModeChange}
                     onComplexMultiSelect={handleComplexMultiSelect}
                     isPrzedsięwzięcieTooShort={isPrzedsięwzięcieTooShort}
                     isRozliczenieTooSoon={isRozliczenieTooSoon}

@@ -1,5 +1,7 @@
-const labelClass = 'flex flex-row items-start gap-4 w-full my-1';
-const spanTextClass = 'w-2/5 text-right font-medium text-gray-700 pt-2 flex items-center justify-end gap-1';
+import { useState } from 'react';
+
+const labelClass = 'form-label-row';
+const spanTextClass = 'form-label-text';
 const inputClass = 'flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-full';
 const defaultCostUi = {
     title: 'Tabela kosztów',
@@ -65,8 +67,11 @@ const defaultFormUi = {
     generateButtonText: 'Generuj gotowy dokument',
     dateRangeSeparator: 'do',
     sectionTitles: {
+        general: 'Informacje ogólne',
+        costs: 'Tabela kosztów',
         details: 'Szczegóły przedsięwzięcia',
-        responsible: 'Dane osobowe osoby odpowiedzialnej za rozliczanie wydarzenia',
+        participants: 'Lista uczestników',
+        responsible: 'Dane osobowe do rozliczeń',
     },
     fieldWarnings: {},
     defaultValues: {
@@ -96,7 +101,6 @@ const renderHint = (hint, position = 'top') => (
 );
 
 export default function TemplateForm({
-    activeTemplate,
     templateData,
     ui,
     formData,
@@ -114,6 +118,9 @@ export default function TemplateForm({
     onRemoveParticipantRow,
     onComplexDateChange,
     onComplexSelect,
+    onOrganizerSingleSelect,
+    organizerMode,
+    onOrganizerModeChange,
     onComplexMultiSelect,
     isPrzedsięwzięcieTooShort,
     isRozliczenieTooSoon,
@@ -123,11 +130,12 @@ export default function TemplateForm({
     kosztWymaganyDisplay,
     onResetKosztWymagany,
     onGenerateDocument,
-    onResetTemplateSelection,
     loading,
     error,
     financingSourceOptions,
 }) {
+    const [currentPage, setCurrentPage] = useState(0);
+
     const formUi = {
         ...defaultFormUi,
         ...(ui ?? {}),
@@ -200,33 +208,63 @@ export default function TemplateForm({
 
         if (field.type === 'select_complex_multi') {
             const selectedNames = Array.isArray(formData[field.id]) ? formData[field.id] : [];
+            const isOrganizerField = field.id === 'wybor_organizacji';
 
             return (
                 <div key={field.id} className="w-full flex flex-col">
                     <div className={labelClass}>
                         <span className={spanTextClass}>{field.label}: {hintElement}</span>
-                        <div className="flex-1 flex flex-col gap-2 border border-gray-300 rounded p-3">
-                            {field.options.map((opt) => (
-                                <label key={opt.name} className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="h-4 w-4 accent-blue-600"
-                                        checked={selectedNames.includes(opt.name)}
-                                        onChange={(e) => onComplexMultiSelect(field.id, opt.name, e.target.checked, field.options)}
-                                    />
-                                    <span className="text-sm text-gray-700">{opt.name}</span>
-                                </label>
-                            ))}
+                        <div className="flex-1 flex flex-col gap-3">
+                            {isOrganizerField && (
+                                <div className="organizer-mode" role="radiogroup" aria-label="Liczba organizatorów">
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="organizerMode"
+                                            checked={organizerMode === 'single'}
+                                            onChange={() => onOrganizerModeChange('single')}
+                                        />
+                                        Jeden organizator
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="organizerMode"
+                                            checked={organizerMode === 'multiple'}
+                                            onChange={() => onOrganizerModeChange('multiple')}
+                                        />
+                                        Kilku organizatorów
+                                    </label>
+                                </div>
+                            )}
+                            {isOrganizerField && organizerMode === 'single' ? (
+                                <select
+                                    className={inputClass}
+                                    value={selectedNames[0] ?? ''}
+                                    onChange={(e) => onOrganizerSingleSelect(field, e.target.value)}
+                                >
+                                    <option value="">{formUi.selectPlaceholder}</option>
+                                    {field.options.map((opt) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}
+                                </select>
+                            ) : (
+                                <div className="flex flex-col gap-2 border border-gray-300 rounded p-3">
+                                    {field.options.map((opt) => (
+                                        <label key={opt.name} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 accent-pss-blue"
+                                                style={{accentColor: 'var(--pss-blue)'}}
+                                                checked={selectedNames.includes(opt.name)}
+                                                onChange={(e) => onComplexMultiSelect(field.id, opt.name, e.target.checked, field.options)}
+                                            />
+                                            <span className="text-sm text-gray-700">{opt.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-                    {selectedNames.length === 0 && (
-                        <div className="flex flex-row w-full">
-                            <div className="w-2/5"></div>
-                            <p className="flex-1 text-red-500 text-xs font-semibold mt-1 ml-4">
-                                Zaznacz przynajmniej jednego organizatora.
-                            </p>
-                        </div>
-                    )}
+
                 </div>
             );
         }
@@ -261,7 +299,8 @@ export default function TemplateForm({
                         name={field.id}
                         checked={Boolean(formData[field.id])}
                         onChange={onChange}
-                        className="mt-3 h-5 w-5 accent-blue-600"
+                        className="mt-3 h-5 w-5"
+                        style={{accentColor: 'var(--pss-blue)'}}
                     />
                 </label>
             );
@@ -390,7 +429,8 @@ export default function TemplateForm({
                         name="bezkosztowe"
                         checked={isBezkosztowe}
                         onChange={onChange}
-                        className="mt-3 h-5 w-5 accent-blue-600"
+                        className="mt-3 h-5 w-5"
+                        style={{accentColor: 'var(--pss-blue)'}}
                     />
                 </label>
 
@@ -466,7 +506,7 @@ export default function TemplateForm({
                                                 onChange={(e) => onCostRowChange(row.id, 'unitPrice', e.target.value)}
                                             />
                                         </td>
-                                        <td className="border border-gray-200 px-2 py-2 min-w-64">
+                                        <td className="border border-gray-200 px-2 py-2 w-40" style={{minWidth:'140px', maxWidth:'180px'}}>
                                             <select
                                                 className="w-full p-2 border border-gray-300 rounded"
                                                 value={sourceValue}
@@ -654,72 +694,95 @@ export default function TemplateForm({
         wyjazd: templateData?.form_wyjazd ?? [],
     };
 
+    const pages = [
+        { title: formUi.sectionTitles.general ?? 'Informacje ogólne', content: () => (
+            <>
+                <label className={labelClass}>
+                    <span className={spanTextClass}>{formUi.typeLabel}:</span>
+                    <select
+                        name="typ_wniosku"
+                        value={formData.typ_wniosku}
+                        onChange={onChange}
+                        className={inputClass}
+                    >
+                        {formUi.typeOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </label>
+                {renderFields(templateData.form_wniosek)}
+            </>
+        ) },
+        { title: formUi.sectionTitles.costs ?? 'Tabela kosztów', content: () => renderCostTable() },
+        { title: formUi.sectionTitles.details ?? 'Szczegóły przedsięwzięcia', content: () => (
+            <div className="form-page-fields">{renderFields(conditionalForms[formData.typ_wniosku] ?? [])}</div>
+        ) },
+        { title: formUi.sectionTitles.participants ?? 'Lista uczestników', content: () => (
+            uczestnicyAvailable ? renderParticipantTable() : (
+                <p className="empty-page-message">Lista uczestników nie dotyczy wybranego typu przedsięwzięcia.</p>
+            )
+        ) },
+        { title: formUi.sectionTitles.responsible ?? 'Dane osobowe do rozliczeń', content: () => (
+            <>
+                <div className="form-page-fields">{renderFields(templateData.form_odpowiedzialny)}</div>
+                <div className="form-page-fields">{renderField(templateData.end)}</div>
+            </>
+        ) },
+    ];
+    const activePage = pages[currentPage] ?? pages[0];
+
     return (
-        <div className="flex flex-col gap-4 w-full border border-gray-200 p-6 rounded-lg bg-white shadow-sm text-left">
-            <div className="flex items-center justify-between gap-4">
-                <p className="font-semibold text-gray-700">{formUi.documentLabel}: {activeTemplate?.label}</p>
-                <button
-                    onClick={onResetTemplateSelection}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                    {formUi.changeDocument}
-                </button>
-            </div>
+        <div className="flex flex-col gap-4 w-full border border-gray-200 p-6 rounded-xl bg-white shadow-sm text-left overflow-hidden">
 
             {loading && <p className="text-gray-500 text-center">{formUi.loadingText}</p>}
             {error && <p className="text-red-600 text-center">{error}</p>}
 
             {!loading && templateData && (
-                <>
-                    <label className={labelClass}>
-                        <span className={spanTextClass}>{formUi.typeLabel}:</span>
-                        <select
-                            name="typ_wniosku"
-                            value={formData.typ_wniosku}
-                            onChange={onChange}
-                            className={inputClass}
-                        >
-                            {formUi.typeOptions.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    {renderFields(templateData.form_wniosek)}
-
-                    {renderCostTable()}
-
-                    <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
-                        <p className="font-semibold text-gray-700 text-center pt-0 mb-2">
-                            {formUi.sectionTitles.details}
-                        </p>
-                        {renderFields(conditionalForms[formData.typ_wniosku] ?? [])}
-                    </div>
-
-                    {renderParticipantTable()}
-
-                    <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
-                        <p className="font-semibold text-gray-700 text-center pt-0 mb-2">
-                            {formUi.sectionTitles.responsible}
-                        </p>
-                        {renderFields(templateData.form_odpowiedzialny)}
-                    </div>
-
-                    <div className="border-t border-gray-300 pt-6 mt-2 flex flex-col gap-4">
-                        {renderField(templateData.end)}
-                    </div>
-
-                    <div className="flex justify-end mt-4">
-                        <button
-                            onClick={onGenerateDocument}
-                            className="bg-blue-500 hover:bg-blue-600 transition-colors text-white font-bold py-2 px-6 rounded shadow"
-                        >
-                            {formUi.generateButtonText}
-                        </button>
-                    </div>
-                </>
+                <div className="form-wizard">
+                    <aside className="form-wizard-sidebar">
+                        {pages.map((page, index) => (
+                            <button
+                                key={page.title}
+                                type="button"
+                                className={`wizard-step-button ${index === currentPage ? 'active' : ''}`}
+                                onClick={() => setCurrentPage(index)}
+                            >
+                                &gt; {page.title}
+                            </button>
+                        ))}
+                        <div className="form-wizard-actions">
+                            <button
+                                type="button"
+                                className="wizard-secondary-button"
+                                disabled={currentPage === 0}
+                                onClick={() => setCurrentPage((page) => Math.max(page - 1, 0))}
+                            >
+                                Wstecz
+                            </button>
+                            {currentPage < pages.length - 1 ? (
+                                <button
+                                    type="button"
+                                    className="wizard-primary-button"
+                                    onClick={() => setCurrentPage((page) => Math.min(page + 1, pages.length - 1))}
+                                >
+                                    Przejdź dalej <span aria-hidden="true">→</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={onGenerateDocument}
+                                    className="wizard-primary-button"
+                                >
+                                    {formUi.generateButtonText}
+                                </button>
+                            )}
+                        </div>
+                    </aside>
+                    <section className="form-wizard-content">
+                        <h2>{activePage.title}:</h2>
+                        <div className="form-page-content">{activePage.content()}</div>
+                    </section>
+                </div>
             )}
         </div>
     );
